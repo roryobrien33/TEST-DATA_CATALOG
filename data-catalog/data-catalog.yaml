@@ -431,6 +431,64 @@ datasets:
       - ex:energy-community
       - ex:energy
 
+# Additional Datasets - German Node
+  - identifier: ex:german-node-enelDataset-OL-Load0
+    title: ENEL Historical Data - Overload - Load 0
+    publisher:
+      name: EPRI
+    status: active
+    license:
+      title: TBD
+    inSeries: ex:german-node
+    hasPolicy: plcy:open-information
+    theme:
+      - ex:training-data
+      - ex:referenceGrid-basilicata
+      - ex:simulationSoftware-odss
+      - ex:dataSource-enel
+      - ex:simulationScenario-overload
+      - ex:dataFormat-csv
+      - ex:networkInfrastructureType-distribution
+      - ex:dataOwnership-epri
+
+  - identifier: ex:german-node-enelDataset-OL-Load1
+    title: ENEL Historical Data - Overload - Load 1
+    publisher:
+      name: EPRI
+    status: active
+    license:
+      title: TBD
+    inSeries: ex:german-node
+    hasPolicy: plcy:open-information
+    theme:
+      - ex:training-data
+      - ex:referenceGrid-basilicata
+      - ex:simulationSoftware-odss
+      - ex:dataSource-enel
+      - ex:simulationScenario-overload
+      - ex:dataFormat-csv
+      - ex:networkInfrastructureType-distribution
+      - ex:dataOwnership-epri
+
+  - identifier: ex:german-node-enelDataset-OL-Load2
+    title: ENEL Historical Data - Overload - Load 2
+    publisher:
+      name: EPRI
+    status: active
+    license:
+      title: TBD
+    inSeries: ex:german-node
+    hasPolicy: plcy:open-information
+    theme:
+      - ex:training-data
+      - ex:referenceGrid-basilicata
+      - ex:simulationSoftware-odss
+      - ex:dataSource-enel
+      - ex:simulationScenario-overload
+      - ex:dataFormat-csv
+      - ex:networkInfrastructureType-distribution
+      - ex:dataOwnership-epri
+
 concepts:
   - prefLabel: energy
     identifier: ex:energy
@@ -469,6 +527,65 @@ concepts:
   - prefLabel: energy community
     identifier: ex:energy-community
     definition: Local energy communities  
+  
+  #Additional Concepts
+  - prefLabel: Reference Grid Location - Basilicata, Italy
+    identifier: ex:referenceGrid-basilicata
+    definition: The location of the reference grid the historical data used in the Overload simulation.
+  
+  - prefLabel: Reference Grid Location - Apulia, Italy
+    identifier: ex:referenceGrid-apulia
+    definition: The location of the reference grid the historical data used in the Over-voltage simulation.
+  
+  - prefLabel: Reference Grid Location - Liguria, Italy
+    identifier: ex:referenceGrid-liguria
+    definition: The location of the reference grid the historical data used in the Under-voltage simulation.
+  
+  - prefLabel: Simulation Software - OpenDSS
+    identifier: ex:simulationSoftware-odss
+    definition: The software used in the simulation.
+
+  - prefLabel: Data Source - ENEL
+    identifier: ex:dataSource-enel
+    definition: Where the data was sourced from.
+
+  - prefLabel: Simulation Scenario - Overload
+    identifier: ex:simulationScenario-overload
+    definition: The scenario the data will be used to simulate.
+
+  - prefLabel: Simulation Scenario - Over-voltage
+    identifier: ex:simulationScenario-overVoltage
+    definition: The scenario the data will be used to simulate.
+
+  - prefLabel: Simulation Scenario - Under-voltage
+      identifier: ex:simulationScenario-underVoltage
+      definition: The scenario the data will be used to simulate.
+    
+  # - prefLabel: Key Variables (Category)
+  #   identifier: ex:keyVariables-category
+  #   definition: The key variables of the dataset.
+
+  # - prefLabel: Temporal Attributes (Category)
+  #   identifier: ex:temporalAttributes-category
+  #   definition: The time scope of the simulation (i.e. time-series/snapshot).
+
+  - prefLabel: Dataset Distribution Format - CSV
+    identifier: ex:dataFormat-csv
+    definition: The format of the dataset distribution.
+
+  - prefLabel: Network Infrastructure Type - Distribution
+    identifier: ex:networkInfrastructureType-distribution
+    definition: The type of grid infrastructure the data/simulation is based on (e.g. Distribution, Transmission)
+
+
+  # - prefLabel: Temporal Rate (Category)
+  #   identifier: ex:temporalRate-category
+  #   definition: The time interval for time-series data (e.g. 15m, 1hr)
+
+  - prefLabel: Data Ownership - EPRI
+    identifier: ex:dataOwnership-epri
+    definition: The company/person who owns the data.
+
 
 series:
   - identifier: ex:uc1-multi-energy-sector-coupling
@@ -503,6 +620,14 @@ series:
       usecase of the AI-EFFECT project.
     publisher:
       name: INESC-TEC
+
+# Additional Use-cases
+  - identifier: ex:german-node
+    title: German node 
+    description: This series contains the datasets related to the German Node use case.
+    publisher:
+      name: EPRI
+
 
 metrics:
   - identifier: ex:fkrhkqewjewrc
