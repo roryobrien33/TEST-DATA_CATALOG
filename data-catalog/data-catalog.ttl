@@ -1,27 +1,78 @@
 @prefix adms: <http://www.w3.org/ns/adms#> .
+@prefix ai-efct: <https://AI-EFFECT.github.io/AI-EFFECT-Data-Catalog/> .
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix dqv: <http://www.w3.org/ns/dqv#> .
 @prefix ex: <http://www.example.com/> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix plcy: <https://www.uuidea.eu/simple_data_catalog/policies/> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
-@prefix sdcdc: <https://www.uuidea.eu/profiles/data-catalog/> .
+@prefix sdcdc: <https://www.uuidea.eu/profiles/data-catalog> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
-@prefix time: <http://www.w3.org/2006/time#> .
-@prefix vcard: <http://www.w3.org/2006/vcard/ns#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-ex:abcde123 a dcat:Catalog ;
-    dcterms:description "a test data catalog created to validate the schema" ;
+ex:german-node-enelDataset-OL-Load0 a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
     dcterms:publisher [ a foaf:Agent ;
-            foaf:name "my name" ] ;
-    dcterms:title "test data catalog" .
+            foaf:name "EPRI" ] ;
+    dcterms:title "ENEL Historical Data - Overload - Load 0" ;
+    adms:status "active" ;
+    dcat:inSeries ex:german-node ;
+    dcat:theme ex:dataFormat-csv,
+        ex:dataOwnership-epri,
+        ex:dataSource-enel,
+        ex:networkInfrastructureType-distribution,
+        ex:referenceGrid-basilicata,
+        ex:simulationScenario-overload,
+        ex:simulationSoftware-odss,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
 
-ex:ewfalsdfh a dcat:DataService ;
-    dcterms:description "example data sercvice like an openAPI endpoint" ;
-    dcterms:title "Example Service" ;
-    dcat:endpointURL "https://www.example.com/getyourdatahere/" ;
-    dcat:servesDataset ex:bvkljfhds .
+ex:german-node-enelDataset-OL-Load1 a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "EPRI" ] ;
+    dcterms:title "ENEL Historical Data - Overload - Load 1" ;
+    adms:status "active" ;
+    dcat:inSeries ex:german-node ;
+    dcat:theme ex:dataFormat-csv,
+        ex:dataOwnership-epri,
+        ex:dataSource-enel,
+        ex:networkInfrastructureType-distribution,
+        ex:referenceGrid-basilicata,
+        ex:simulationScenario-overload,
+        ex:simulationSoftware-odss,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:german-node-enelDataset-OL-Load2 a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "EPRI" ] ;
+    dcterms:title "ENEL Historical Data - Overload - Load 2" ;
+    adms:status "active" ;
+    dcat:inSeries ex:german-node ;
+    dcat:theme ex:dataFormat-csv,
+        ex:dataOwnership-epri,
+        ex:dataSource-enel,
+        ex:networkInfrastructureType-distribution,
+        ex:referenceGrid-basilicata,
+        ex:simulationScenario-overload,
+        ex:simulationSoftware-odss,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:referenceGrid-apulia a skos:Concept ;
+    skos:definition "The location of the reference grid the historical data used in the Over-voltage simulation." ;
+    skos:prefLabel "Reference Grid Location - Apulia, Italy" .
+
+ex:referenceGrid-liguria a skos:Concept ;
+    skos:definition "The location of the reference grid the historical data used in the Under-voltage simulation." ;
+    skos:prefLabel "Reference Grid Location - Liguria, Italy" .
 
 ex:sfasdggfvrln a dqv:QualityMeasurement ;
     dqv:computedOn ex:herrcgre ;
@@ -29,32 +80,624 @@ ex:sfasdggfvrln a dqv:QualityMeasurement ;
     dqv:value "0.9"^^xsd:float ;
     prov:generatedAtTime "2025-04-22"^^xsd:date .
 
-ex:bvkljfhds a dcat:Dataset ;
+ex:simulationScenario-overVoltage a skos:Concept ;
+    skos:definition "The scenario the data will be used to simulate." ;
+    skos:prefLabel "Simulation Scenario - Over-voltage" .
+
+ex:simulationScenario-underVoltage a skos:Concept ;
+    skos:definition "The scenario the data will be used to simulate." ;
+    skos:prefLabel "Simulation Scenario - Under-voltage" .
+
+ex:uc1-ai-system a dcat:Dataset ;
     dcterms:license [ a dcterms:LicenseDocument ;
-            dcterms:title "cc-by 4.0" ] ;
+            dcterms:title "TBD" ] ;
     dcterms:publisher [ a foaf:Agent ;
-            foaf:name "my name" ] ;
-    dcterms:title "test lineage dataset" ;
-    vcard:contactPoint [ a vcard:Kind ;
-            vcard:hasEmail "my.name@example.com" ] ;
-    adms:status "draft" ;
-    dcat:inSeries ex:abcde ;
-    dcat:theme ex:abc,
-        ex:bcd ;
-    dcat:version [ a dcterms:PeriodOfTime ;
-            time:hasBeginning "2025-01-01"^^xsd:date ;
-            time:hasEnd "2025-12-31"^^xsd:date ] ;
-    prov:wasDerivedFrom ex:herrcgre .
+            foaf:name "DTU" ] ;
+    dcterms:title "AI System for UC1" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc1-multi-energy-sector-coupling ;
+    dcat:theme ex:ai-system,
+        ex:energy,
+        ex:sector-coupling ;
+    odrl:hasPolicy plcy:open-information .
 
-ex:def a skos:Concept ;
-    skos:altLabel "information (leave a comment ;-))" ;
-    skos:definition "data is plural of datum" ;
-    skos:prefLabel "data" .
+ex:uc1-prompt-response-log a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "DTU" ] ;
+    dcterms:title "Prompt Response Log for UC1" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc1-multi-energy-sector-coupling ;
+    dcat:theme ex:ai-system,
+        ex:energy,
+        ex:prompt-response-log,
+        ex:sector-coupling ;
+    odrl:hasPolicy plcy:open-information .
 
-ex:fekfrbajr a dcat:Distribution ;
-    dcterms:format "csv" ;
-    dcterms:issued "2025-11-26"^^xsd:date ;
-    dcat:accessURL "https://www.example.com/getyourdatahere.csv" .
+ex:uc1-regulatory-compliance a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "DTU" ] ;
+    dcterms:title "Regulatory Compliance Strategy for UC1" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc1-multi-energy-sector-coupling ;
+    dcat:theme ex:energy,
+        ex:regulatory-compliance,
+        ex:sector-coupling ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc1-test-validation-procedures a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "DTU" ] ;
+    dcterms:title "Test and Validation Procedures for UC1" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc1-multi-energy-sector-coupling ;
+    dcat:theme ex:energy,
+        ex:sector-coupling,
+        ex:test-data,
+        ex:validation-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc1-training-data-procedures a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "DTU" ] ;
+    dcterms:title "Training Data Collection and Processing Procedures for UC1" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc1-multi-energy-sector-coupling ;
+    dcat:theme ex:data-processing,
+        ex:energy,
+        ex:sector-coupling,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc1-training-dataset a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "DTU" ] ;
+    dcterms:title "Training data set for UC1" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc1-multi-energy-sector-coupling ;
+    dcat:theme ex:energy,
+        ex:sector-coupling,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc1-validation-dataset a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "DTU" ] ;
+    dcterms:title "Validation data set for UC1" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc1-multi-energy-sector-coupling ;
+    dcat:theme ex:energy,
+        ex:sector-coupling,
+        ex:validation-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc2-ai-system a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "TU Delft" ] ;
+    dcterms:title "AI System for UC2" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc2-transmission-congestion-management ;
+    dcat:theme ex:ai-system,
+        ex:congestion-management,
+        ex:energy ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc2-prompt-response-log a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "TU Delft" ] ;
+    dcterms:title "Prompt Response Log for UC2" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc2-transmission-congestion-management ;
+    dcat:theme ex:ai-system,
+        ex:congestion-management,
+        ex:energy,
+        ex:prompt-response-log ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc2-regulatory-compliance a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "TU Delft" ] ;
+    dcterms:title "Regulatory Compliance Strategy for UC2" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc2-transmission-congestion-management ;
+    dcat:theme ex:congestion-management,
+        ex:energy,
+        ex:regulatory-compliance ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc2-test-validation-procedures a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "TU Delft" ] ;
+    dcterms:title "Test and Validation Procedures for UC2" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc2-transmission-congestion-management ;
+    dcat:theme ex:congestion-management,
+        ex:energy,
+        ex:test-data,
+        ex:validation-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc2-training-data-procedures a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "TU Delft" ] ;
+    dcterms:title "Training Data Collection and Processing Procedures for UC2" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc2-transmission-congestion-management ;
+    dcat:theme ex:congestion-management,
+        ex:data-processing,
+        ex:energy,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc2-training-dataset a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "TU Delft" ] ;
+    dcterms:title "Training data set for UC2" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc2-transmission-congestion-management ;
+    dcat:theme ex:congestion-management,
+        ex:energy,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc2-validation-dataset a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "TU Delft" ] ;
+    dcterms:title "Validation data set for UC2" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc2-transmission-congestion-management ;
+    dcat:theme ex:congestion-management,
+        ex:energy,
+        ex:validation-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc3-ai-system a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "Fraunhofer" ] ;
+    dcterms:title "AI System for UC3" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc3-der-integration-distribution-systems ;
+    dcat:theme ex:ai-system,
+        ex:der-integration,
+        ex:energy ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc3-prompt-response-log a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "Fraunhofer" ] ;
+    dcterms:title "Prompt Response Log for UC3" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc3-der-integration-distribution-systems ;
+    dcat:theme ex:ai-system,
+        ex:der-integration,
+        ex:energy,
+        ex:prompt-response-log ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc3-regulatory-compliance a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "Fraunhofer" ] ;
+    dcterms:title "Regulatory Compliance Strategy for UC3" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc3-der-integration-distribution-systems ;
+    dcat:theme ex:der-integration,
+        ex:energy,
+        ex:regulatory-compliance ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc3-test-validation-procedures a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "Fraunhofer" ] ;
+    dcterms:title "Test and Validation Procedures for UC3" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc3-der-integration-distribution-systems ;
+    dcat:theme ex:der-integration,
+        ex:energy,
+        ex:test-data,
+        ex:validation-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc3-training-data-procedures a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "Fraunhofer" ] ;
+    dcterms:title "Training Data Collection and Processing Procedures for UC3" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc3-der-integration-distribution-systems ;
+    dcat:theme ex:data-processing,
+        ex:der-integration,
+        ex:energy,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc3-training-dataset a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "Fraunhofer" ] ;
+    dcterms:title "Training data set for UC3" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc3-der-integration-distribution-systems ;
+    dcat:theme ex:der-integration,
+        ex:energy,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc3-validation-dataset a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "Fraunhofer" ] ;
+    dcterms:title "Validation data set for UC3" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc3-der-integration-distribution-systems ;
+    dcat:theme ex:der-integration,
+        ex:energy,
+        ex:validation-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc4-ai-system a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "INESC-TEC" ] ;
+    dcterms:title "AI System for UC4" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc4-energy-efficiency-local-communities ;
+    dcat:theme ex:ai-system,
+        ex:energy,
+        ex:energy-community ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc4-prompt-response-log a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "INESC-TEC" ] ;
+    dcterms:title "Prompt Response Log for UC4" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc4-energy-efficiency-local-communities ;
+    dcat:theme ex:ai-system,
+        ex:energy,
+        ex:energy-community,
+        ex:prompt-response-log ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc4-regulatory-compliance a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "INESC-TEC" ] ;
+    dcterms:title "Regulatory Compliance Strategy for UC4" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc4-energy-efficiency-local-communities ;
+    dcat:theme ex:energy,
+        ex:energy-community,
+        ex:regulatory-compliance ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc4-test-validation-procedures a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "INESC-TEC" ] ;
+    dcterms:title "Test and Validation Procedures for UC4" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc4-energy-efficiency-local-communities ;
+    dcat:theme ex:energy,
+        ex:energy-community,
+        ex:test-data,
+        ex:validation-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc4-training-data-procedures a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "INESC-TEC" ] ;
+    dcterms:title "Training Data Collection and Processing Procedures for UC4" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc4-energy-efficiency-local-communities ;
+    dcat:theme ex:data-processing,
+        ex:energy,
+        ex:energy-community,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc4-training-dataset a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "INESC-TEC" ] ;
+    dcterms:title "Training data set for UC4" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc4-energy-efficiency-local-communities ;
+    dcat:theme ex:energy,
+        ex:energy-community,
+        ex:training-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ex:uc4-validation-dataset a dcat:Dataset ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "TBD" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "INESC-TEC" ] ;
+    dcterms:title "Validation data set for UC4" ;
+    adms:status "planned" ;
+    dcat:inSeries ex:uc4-energy-efficiency-local-communities ;
+    dcat:theme ex:energy,
+        ex:energy-community,
+        ex:validation-data ;
+    odrl:hasPolicy plcy:open-information .
+
+ai-efct:The_AI-EFFECT_Data_Catalog a dcat:Catalog ;
+    dcterms:description """This is the data catalog for the AI-EFFECT project. 
+
+
+In an era dominated by digital transformation, the integration of Artificial Intelligence (AI) in critical infrastructure, particularly in the energy sector, promises enhanced efficiency, resilience, and sustainability.
+
+The Digitalisation of the Energy System – EU Action Plan2 underscores the pivotal role of data and AI in shaping a more efficient, resilient, and sustainable energy landscape. However, challenges such as high-quality data availability, interoperability, and AI system security must be addressed to prevent potential threats and maintain integrity of critical infrastructure.
+
+Additionally, regulatory challenges arise, in particular with the first European regulation on Artificial Intelligence (EU AI Act3) focusing on privacy, ethical concerns, and liability.
+
+In this context, there is a critical need for an infrastructure for testing AI applications for the energy sector in an independent, protected environment, replicating conditions similar to real life. There is also a need for to validate the AI models in operational environments, to bridge the gap between laboratory and real-life adoption and between industry and research communities and European energy sector utilities.
+
+learn more at https://ai-effect.eu
+""" ;
+    dcterms:license [ a dcterms:LicenseDocument ;
+            dcterms:title "https://creativecommons.org/licenses/by-sa/4.0/" ] ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "EPRI Europe" ] ;
+    dcterms:title "The AI-EFFECT Data Catalog" ;
+    adms:status "draft" .
+
+plcy:ai-creating a odrl:Policy ;
+    dcterms:description """Applies when the research focuses on creating an AI system as defined by the 
+EU AI Act. The trained AI model needs to be published with corresponding metadata.
+In case of conflicts with other classifications, the most stringent applies.
+""" ;
+    dcterms:title "Creating AI Policy" ;
+    odrl:obligation plcy:ai-creating-documentation,
+        plcy:ai-creating-prompt-logs,
+        plcy:ai-creating-training-data,
+        plcy:ai-creating-validation-data .
+
+plcy:ai-creating-documentation a odrl:Duty ;
+    dcterms:description """Must publish architectural documentation addressing:
+- Written strategy for regulatory compliance and conformity assessment
+- Procedures used in the development of the AI system and procedures 
+  for quality control and quality assurance
+- Examination, test and validation procedures to be carried out before, 
+  during and after the deployment of the system
+- Documentation of the systems and procedures used for data collection, 
+  data analysis and labelling of training data
+- A risk management system that addresses foreseeable risks including 
+  safety risks and fundamental rights risks
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:ai-creating-prompt-logs a odrl:Duty ;
+    dcterms:description """Must publish prompt-response logs that register the models inputs and outputs.
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:ai-creating-training-data a odrl:Duty ;
+    dcterms:description """Must publish the training dataset used to develop the AI system.
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:ai-creating-validation-data a odrl:Duty ;
+    dcterms:description """Must publish the validation dataset used for testing the validity of the model.
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:ai-reporting a odrl:Policy ;
+    dcterms:description """Applies when AI is used for reporting or dissemination activities (text, images, 
+video or other media). Here, AI is not used for primary research activities, 
+just for reporting on them.
+""" ;
+    dcterms:title "AI for Reporting Policy" ;
+    odrl:obligation plcy:ai-reporting-attribution .
+
+plcy:ai-reporting-attribution a odrl:Duty ;
+    dcterms:description """If the artifact was entirely created using AI, attribution must state: 
+"This [material/visual/text/...] was (in part) generated using AI. 
+It was generated using [model name]+[model version] at [date]".
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:ai-using a odrl:Policy ;
+    dcterms:description """Applies when AI is used for creating research artifacts or generating data. 
+In this case, AI has been used during the research itself.
+""" ;
+    dcterms:title "Using AI Policy" ;
+    odrl:obligation plcy:ai-using-provenance .
+
+plcy:ai-using-provenance a odrl:Duty ;
+    dcterms:description """Must provide provenance conforming to the prov-o standard, including:
+- The Activity (the run of the AI system) that produced the dataset, 
+  including when the Activity took place
+- The AI system, including its version
+- The input data(sets), including any prompts or configurations 
+  like 'temperature' that the AI system used to produce the result.
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:internal-access a odrl:Permission ;
+    dcterms:description """Allows project members to access the data. Consumers outside the project 
+do not have access unless agreed upon by the owner.
+""" ;
+    odrl:action "access" ;
+    odrl:assignee "Data Consumer" .
+
+plcy:internal-agreement a odrl:Duty ;
+    dcterms:description """If the owner decides to share information with non-project members, 
+appropriate arrangements must be made with the provider.
+""" ;
+    odrl:action "share" ;
+    odrl:assignee "Data Provider" .
+
+plcy:internal-information a odrl:Policy ;
+    dcterms:description """Data classified as "Internal Information" is intended for use only within 
+the project. While this data may not be considered highly sensitive, it is 
+still restricted to employees or authorized personnel.
+""" ;
+    dcterms:title "Internal Information Policy" ;
+    odrl:obligation plcy:internal-agreement,
+        plcy:internal-store ;
+    odrl:permission plcy:internal-access .
+
+plcy:internal-store a odrl:Duty ;
+    dcterms:description """Creators must save their information in the appropriate folders in the 
+file sharing infrastructure available to the project.
+""" ;
+    odrl:action "store" ;
+    odrl:assignee "Data Provider" .
+
+plcy:open-info-access a odrl:Permission ;
+    dcterms:description """Allows any consumer to access the data without restriction.
+""" ;
+    odrl:action "access" ;
+    odrl:assignee "Data Consumer" .
+
+plcy:open-license a odrl:Duty ;
+    dcterms:description """The owner or creator must provide an open source or Creative Commons 
+license describing the conditions under which a consumer may use the information.
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:open-make-accessible a odrl:Duty ;
+    dcterms:description """Providers must make the information available through an appropriate protocol.
+""" ;
+    odrl:action "make_available" ;
+    odrl:assignee "Data Provider" .
+
+plcy:open-register a odrl:Duty ;
+    dcterms:description """The creator or owner must register the information in an indexed catalog 
+so consumers can find it.
+""" ;
+    odrl:action "register" ;
+    odrl:assignee "Data Provider" .
+
+plcy:open-rights a odrl:Duty ;
+    dcterms:description """The owner must provide a rights statement describing any IP or copyright 
+that the owner and/or anyone else holds over the information.
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:personal-access a odrl:Permission ;
+    dcterms:description """Access is granted only to consumers/users that comply with GDPR conditions.
+""" ;
+    odrl:action "access" ;
+    odrl:assignee "Data Consumer" .
+
+plcy:personal-information a odrl:Policy ;
+    dcterms:description """Data classified as "Personal Information" falls under the GDPR. This includes 
+any data that can be used to identify, contact, or locate a single person.
+Access must be granted in compliance with GDPR and limited to those consumers 
+that fall under the conditions laid out in GDPR Article 6.
+""" ;
+    dcterms:title "Personal Information Policy" ;
+    odrl:obligation plcy:personal-minimize,
+        plcy:personal-purpose,
+        plcy:personal-subject-rights ;
+    odrl:permission plcy:personal-access .
+
+plcy:personal-minimize a odrl:Duty ;
+    dcterms:description """Collection of personal data must be minimized. All personal data must be 
+deleted before the termination of the project.
+""" ;
+    odrl:action "delete" ;
+    odrl:assignee "Data Provider" .
+
+plcy:personal-purpose a odrl:Duty ;
+    dcterms:description """The owner and creator must clearly state the purpose limitation with which 
+the information was collected. Personal Information may only be shared if 
+the subject has given permission.
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:personal-subject-rights a odrl:Duty ;
+    dcterms:description """The provider must allow subjects of Personal Information to claim their 
+GDPR rights: Right of access, Right to rectification, Right to erasure.
+""" ;
+    odrl:action "allow" ;
+    odrl:assignee "Service Provider" .
+
+plcy:restricted-access a odrl:Permission ;
+    dcterms:description """Only consumers with whom the owner has a data sharing agreement have access.
+""" ;
+    odrl:action "access" ;
+    odrl:assignee "Data Consumer" .
+
+plcy:restricted-agreement a odrl:Duty ;
+    dcterms:description """The owner must provide a data sharing agreement stating addressing rights, 
+licensing, and use limitations. Any consumer wishing access must agree 
+to this agreement.
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Data Provider" .
+
+plcy:restricted-environment a odrl:Duty ;
+    dcterms:description """The provider must provide an access-controlled environment for restricted data.
+""" ;
+    odrl:action "provide" ;
+    odrl:assignee "Service Provider" .
+
+plcy:restricted-information a odrl:Policy ;
+    dcterms:description """Data classified as "Restricted Information" contains information that requires 
+a higher level of protection due to its sensitivity. Access to this data is 
+limited to specific individuals or groups based on their role within the project.
+Unlike internal information, restricted information is meant for sharing with 
+those that have received explicit permission.
+""" ;
+    dcterms:title "Restricted Information Policy" ;
+    odrl:obligation plcy:restricted-agreement,
+        plcy:restricted-environment ;
+    odrl:permission plcy:restricted-access .
 
 ex:fkrhkqewjewrc a dqv:Metric ;
     skos:definition "an example of a data quality metric" ;
@@ -62,49 +705,204 @@ ex:fkrhkqewjewrc a dqv:Metric ;
     dqv:expectedDataType xsd:float ;
     dqv:inDimension "Completeness" .
 
-ex:abc a skos:Concept ;
-    skos:altLabel "juice" ;
-    skos:definition "energy is energy" ;
+ex:dataFormat-csv a skos:Concept ;
+    skos:definition "The format of the dataset distribution." ;
+    skos:prefLabel "Dataset Distribution Format - CSV" .
+
+ex:dataOwnership-epri a skos:Concept ;
+    skos:definition "The company/person who owns the data." ;
+    skos:prefLabel "Data Ownership - EPRI" .
+
+ex:dataSource-enel a skos:Concept ;
+    skos:definition "Where the data was sourced from." ;
+    skos:prefLabel "Data Source - ENEL" .
+
+ex:german-node a dcat:DatasetSeries ;
+    dcterms:description "This series contains the datasets related to the German Node use case." ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "EPRI" ] ;
+    dcterms:title "German node" .
+
+ex:networkInfrastructureType-distribution a skos:Concept ;
+    skos:definition "The type of grid infrastructure the data/simulation is based on (e.g. Distribution, Transmission)" ;
+    skos:prefLabel "Network Infrastructure Type - Distribution" .
+
+ex:referenceGrid-basilicata a skos:Concept ;
+    skos:definition "The location of the reference grid the historical data used in the Overload simulation." ;
+    skos:prefLabel "Reference Grid Location - Basilicata, Italy" .
+
+ex:simulationScenario-overload a skos:Concept ;
+    skos:definition "The scenario the data will be used to simulate." ;
+    skos:prefLabel "Simulation Scenario - Overload" .
+
+ex:simulationSoftware-odss a skos:Concept ;
+    skos:definition "The software used in the simulation." ;
+    skos:prefLabel "Simulation Software - OpenDSS" .
+
+ex:data-processing a skos:Concept ;
+    skos:definition "Procedures for data collection and processing" ;
+    skos:prefLabel "data processing" .
+
+ex:prompt-response-log a skos:Concept ;
+    skos:definition "Logs of AI prompts and responses" ;
+    skos:prefLabel "prompt response log" .
+
+ex:regulatory-compliance a skos:Concept ;
+    skos:definition "Documents related to regulatory compliance" ;
+    skos:prefLabel "regulatory compliance" .
+
+ex:test-data a skos:Concept ;
+    skos:definition "Dataset used for testing AI models" ;
+    skos:prefLabel "test data" .
+
+ex:congestion-management a skos:Concept ;
+    skos:definition "Transmission congestion management" ;
+    skos:prefLabel "congestion management" .
+
+ex:der-integration a skos:Concept ;
+    skos:definition "Distributed Energy Resources integration" ;
+    skos:prefLabel "DER integration" .
+
+ex:energy-community a skos:Concept ;
+    skos:definition "Local energy communities" ;
+    skos:prefLabel "energy community" .
+
+ex:sector-coupling a skos:Concept ;
+    skos:definition "Multi-energy sector coupling" ;
+    skos:prefLabel "sector coupling" .
+
+ex:uc1-multi-energy-sector-coupling a dcat:DatasetSeries ;
+    dcterms:description """This series contains all the datasets related to the creation of AI systems 
+for the multi-energy and sector coupling usecase of the AI-EFFECT project.
+""" ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "DTU" ] ;
+    dcterms:title "UC1 - Multi Energy and Sector Coupling" .
+
+ex:uc2-transmission-congestion-management a dcat:DatasetSeries ;
+    dcterms:description """This series contains all the datasets related to the creation of AI systems 
+for the transmission congestion management usecase of the AI-EFFECT project.
+""" ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "TU Delft" ] ;
+    dcterms:title "UC2 - Transmission Congestion Management" .
+
+ex:uc3-der-integration-distribution-systems a dcat:DatasetSeries ;
+    dcterms:description """This series contains all the datasets related to the creation of AI systems 
+for the DER integration into Distribution Systems usecase of the AI-EFFECT project.
+""" ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "Fraunhofer" ] ;
+    dcterms:title "UC3 - DER integration into Distribution Systems" .
+
+ex:uc4-energy-efficiency-local-communities a dcat:DatasetSeries ;
+    dcterms:description """This series contains all the datasets related to the creation of AI systems 
+for the Energy efficiency, management and sharing for local energy communities 
+usecase of the AI-EFFECT project.
+""" ;
+    dcterms:publisher [ a foaf:Agent ;
+            foaf:name "INESC-TEC" ] ;
+    dcterms:title "UC4 - Energy efficiency, management and sharing for local energy communities" .
+
+ex:ai-system a skos:Concept ;
+    skos:definition "Artificial Intelligence system or model" ;
+    skos:prefLabel "AI system" .
+
+ex:validation-data a skos:Concept ;
+    skos:definition "Dataset used for validating AI models" ;
+    skos:prefLabel "validation data" .
+
+ex:training-data a skos:Concept ;
+    skos:definition "Dataset used for training AI models" ;
+    skos:prefLabel "training data" .
+
+ex:energy a skos:Concept ;
+    skos:altLabel "power" ;
+    skos:definition "Energy domain related data" ;
     skos:prefLabel "energy" .
 
-ex:abcde a dcat:DatasetSeries ;
-    dcterms:publisher [ a foaf:Agent ;
-            foaf:name "My name" ] ;
-    dcterms:title "all the datasets by this publisher" .
-
-ex:bcd a skos:Concept ;
-    skos:altLabel "practice" ;
-    skos:definition "test is just for testing" ;
-    skos:prefLabel "test" .
-
-ex:herrcgre a dcat:Dataset ;
-    dcterms:license [ a dcterms:LicenseDocument ;
-            dcterms:title "cc-by 4.0" ] ;
-    dcterms:publisher [ a foaf:Agent ;
-            foaf:name "my name" ] ;
-    dcterms:title "test dataset" ;
-    vcard:contactPoint [ a vcard:Kind ;
-            vcard:hasEmail "my.name@example.com" ] ;
-    adms:status "draft" ;
-    dcat:distribution ex:fekfrbajr ;
-    dcat:inSeries ex:abcde ;
-    dcat:theme ex:abc,
-        ex:bcd,
-        ex:def ;
-    dcat:version [ a dcterms:PeriodOfTime ;
-            time:hasBeginning "2025-01-01"^^xsd:date ;
-            time:hasEnd "2025-12-31"^^xsd:date ] .
+plcy:open-information a odrl:Policy ;
+    dcterms:description """Data classified as "Open Information" is intended to be freely available 
+and accessible to anyone without restrictions. This type of data generally 
+does not contain sensitive information and can be shared both within and 
+outside the organization.
+Complies with FAIR principles: Findable, Accessible, Interoperable, Reusable.
+""" ;
+    dcterms:title "Open Information Policy" ;
+    odrl:obligation plcy:open-license,
+        plcy:open-make-accessible,
+        plcy:open-register,
+        plcy:open-rights ;
+    odrl:permission plcy:open-info-access .
 
 [] a sdcdc:Container ;
-    sdcdc:concepts ex:abc,
-        ex:bcd,
-        ex:def ;
-    sdcdc:dataCatalog ex:abcde123 ;
-    sdcdc:dataServices ex:ewfalsdfh ;
-    sdcdc:datasets ex:bvkljfhds,
-        ex:herrcgre ;
-    sdcdc:distributions ex:fekfrbajr ;
+    sdcdc:concepts ex:ai-system,
+        ex:congestion-management,
+        ex:data-processing,
+        ex:dataFormat-csv,
+        ex:dataOwnership-epri,
+        ex:dataSource-enel,
+        ex:der-integration,
+        ex:energy,
+        ex:energy-community,
+        ex:networkInfrastructureType-distribution,
+        ex:prompt-response-log,
+        ex:referenceGrid-apulia,
+        ex:referenceGrid-basilicata,
+        ex:referenceGrid-liguria,
+        ex:regulatory-compliance,
+        ex:sector-coupling,
+        ex:simulationScenario-overVoltage,
+        ex:simulationScenario-overload,
+        ex:simulationScenario-underVoltage,
+        ex:simulationSoftware-odss,
+        ex:test-data,
+        ex:training-data,
+        ex:validation-data ;
+    sdcdc:dataCatalog ai-efct:The_AI-EFFECT_Data_Catalog ;
+    sdcdc:datasets ex:german-node-enelDataset-OL-Load0,
+        ex:german-node-enelDataset-OL-Load1,
+        ex:german-node-enelDataset-OL-Load2,
+        ex:uc1-ai-system,
+        ex:uc1-prompt-response-log,
+        ex:uc1-regulatory-compliance,
+        ex:uc1-test-validation-procedures,
+        ex:uc1-training-data-procedures,
+        ex:uc1-training-dataset,
+        ex:uc1-validation-dataset,
+        ex:uc2-ai-system,
+        ex:uc2-prompt-response-log,
+        ex:uc2-regulatory-compliance,
+        ex:uc2-test-validation-procedures,
+        ex:uc2-training-data-procedures,
+        ex:uc2-training-dataset,
+        ex:uc2-validation-dataset,
+        ex:uc3-ai-system,
+        ex:uc3-prompt-response-log,
+        ex:uc3-regulatory-compliance,
+        ex:uc3-test-validation-procedures,
+        ex:uc3-training-data-procedures,
+        ex:uc3-training-dataset,
+        ex:uc3-validation-dataset,
+        ex:uc4-ai-system,
+        ex:uc4-prompt-response-log,
+        ex:uc4-regulatory-compliance,
+        ex:uc4-test-validation-procedures,
+        ex:uc4-training-data-procedures,
+        ex:uc4-training-dataset,
+        ex:uc4-validation-dataset ;
     sdcdc:metrics ex:fkrhkqewjewrc ;
+    sdcdc:policies plcy:ai-creating,
+        plcy:ai-reporting,
+        plcy:ai-using,
+        plcy:internal-information,
+        plcy:open-information,
+        plcy:personal-information,
+        plcy:restricted-information ;
     sdcdc:qualityMeasurements ex:sfasdggfvrln ;
-    sdcdc:series ex:abcde .
+    sdcdc:series ex:german-node,
+        ex:uc1-multi-energy-sector-coupling,
+        ex:uc2-transmission-congestion-management,
+        ex:uc3-der-integration-distribution-systems,
+        ex:uc4-energy-efficiency-local-communities .
 
