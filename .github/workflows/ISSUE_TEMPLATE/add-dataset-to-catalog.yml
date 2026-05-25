@@ -1,116 +1,21 @@
-name: "Add dataset to a data catalog"
-description: "Submit metadata to create a PR that appends a dataset entry to an existing catalog YAML (or creates a new catalog YAML)."
-title: "[Dataset] <short dataset title>"
+name: Add dataset to a data catalog
+description: Submit metadata for a dataset
+title: "[Dataset] "
 labels: ["catalog-intake"]
-assignees: []
 
 body:
-  - type: markdown
-    attributes:
-      value: |
-        ## Data Catalog Intake Form
-        Use this form to **create a new catalog** or **append a dataset** to an existing catalog file under `catalogs/<catalog-id>.yaml`.
-
-  - type: dropdown
-    id: catalog_action
-    attributes:
-      label: Catalog action
-      description: Choose whether you're creating a new catalog file or updating an existing one.
-      options:
-        - "Update existing catalog"
-        - "Create new catalog"
-    validations:
-      required: true
-
   - type: input
     id: catalog_id
     attributes:
-      label: Catalog ID (slug)
-      description: "Example: german-node (lowercase, numbers, hyphens only). This maps to `catalogs/<catalog-id>.yaml`."
+      label: Catalog ID
       placeholder: "german-node"
     validations:
       required: true
 
   - type: input
-    id: catalog_title
-    attributes:
-      label: Catalog title (required if creating a new catalog)
-      description: "Only required when 'Create new catalog' is selected."
-      placeholder: "German Node Datasets"
-    validations:
-      required: false
-
-  - type: textarea
-    id: catalog_description
-    attributes:
-      label: Catalog description (required if creating a new catalog)
-      description: "Only required when 'Create new catalog' is selected."
-      placeholder: "Short description of what this catalog contains..."
-    validations:
-      required: false
-
-  - type: markdown
-    attributes:
-      value: |
-        --- 
-        ## Dataset metadata
-
-  - type: input
     id: dataset_title
     attributes:
       label: Dataset title
-      placeholder: "Overload scenarios – German nodes"
+      placeholder: "Overload dataset"
     validations:
       required: true
-
-  - type: textarea
-    id: dataset_description
-    attributes:
-      label: Dataset description
-      placeholder: "What is in the dataset, how it was produced, what it can be used for..."
-    validations:
-      required: true
-
-  - type: dropdown
-    id: use_case
-    attributes:
-      label: Use case
-      description: Choose one of the controlled values.
-      options:
-        - overload
-        - over_voltage
-        - under_voltage
-    validations:
-      required: true
-
-  - type: input
-    id: location
-    attributes:
-      label: Location (high-level)
-      placeholder: "Germany (high-level)"
-    validations:
-      required: true
-
-  - type: input
-    id: concepts
-    attributes:
-      label: Concepts / tags (optional)
-      description: "Comma-separated. Example: overload, distribution-grid"
-      placeholder: "overload, distribution-grid"
-    validations:
-      required: false
-
-  - type: textarea
-    id: distributions
-    attributes:
-      label: Distribution links (optional)
-      description: |
-        Optional. Provide one per line.
-        Example:
-        - https://example.com/data.zip (format: zip)
-        - https://example.com/readme (format: html)
-      placeholder: |
-        https://example.com/data.zip (format: zip)
-        https://example.com/readme (format: html)
-    validations:
-      required: false
