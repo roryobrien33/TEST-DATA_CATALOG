@@ -1,0 +1,70 @@
+name: Add dataset to a data catalog
+description: Submit metadata for a dataset
+title: "[Dataset] "
+labels: ["catalog-intake"]
+
+body:
+  - type: dropdown
+    id: catalog_action
+    attributes:
+      label: Catalog action
+      options:
+        - Update existing catalog
+        - Create new catalog
+    validations:
+      required: true
+
+  - type: input
+    id: catalog_id
+    attributes:
+      label: Catalog ID
+      placeholder: "german-node"
+    validations:
+      required: true
+
+  - type: input
+    id: catalog_title
+    attributes:
+      label: Catalog title (if creating new)
+    validations:
+      required: false
+
+  - type: textarea
+    id: catalog_description
+    attributes:
+      label: Catalog description (if creating new)
+    validations:
+      required: false
+
+  - type: input
+    id: dataset_title
+    attributes:
+      label: Dataset title
+      placeholder: "Overload dataset"
+    validations:
+      required: true
+
+  - type: textarea
+    id: dataset_description
+    attributes:
+      label: Dataset description
+    validations:
+      required: true
+
+  - type: dropdown
+    id: use_case
+    attributes:
+      label: Use case
+      options:
+        - overload
+        - over_voltage
+        - under_voltage
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+    validations:
+      required: true
