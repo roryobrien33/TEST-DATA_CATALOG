@@ -1,0 +1,274 @@
+name: Issue Form → Catalog YAML → PR
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  intake:
+    # Only run if the issue has the label we set in the form template
+    if: contains(github.event.issue.labels.*.name, 'catalog-intake')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Parse Issue Form fields
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || "";
+
+            // Helper: extract the value that follows a "### Heading" section in GitHub issue forms.
+            // It captures everything until the next "### " heading.
+            function getField(heading) {
+              const re = new RegExp(`###\\s+${heading}\\s*\\n([\\s\\S]*?)(?=\\n###\\s+|$)`, "i");
+              const m = body.match(re);
+              if (!m) return "";
+              return m[1].trim().replace(/^_No response_$/i, "").trim();
+            }
+
+            const catalog_action = getField("Catalog action");
+            const catalog_id = getField("Catalog ID \\(slug\\)");
+            const catalog_title = getField("Catalog title \\(required if creating a new catalog\\)");
+            const catalog_description = getField("Catalog description \\(required if creating a new catalog\\)");
+            const dataset_title = getField("Dataset title");
+            const dataset_description = getField("Dataset description");
+            const use_case = getField("Use case");
+            const location = getField("Location \\(high-level\\)");
+            const concepts = getField("Concepts / tags \\(optional\\)");
+            const distributions = getField("Distribution links \\(optional\\)");
+
+            // Basic validations
+            const errors = [];
+            if (!catalog_action) errors.push("Missing: Catalog action");
+            if (!catalog_id) errors.push("Missing: Catalog ID (slug)");
+            if (!dataset_title) errors.push("Missing: Dataset title");
+            if (!dataset_description) errors.push("Missing: Dataset description");
+            if (!use_case) errors.push("Missing: Use case");
+            if (!location) errors.push("Missing: Location");
+
+            // Slug validation: lowercase letters, numbers, hyphens
+            if (catalog_id && !/^[a-z0-9-]+$/.test(catalog_id)) {
+              errors.push("Catalog ID must be lowercase letters/numbers/hyphens only (e.g., german-node).");
+            }
+
+            // Controlled vocab for use_case
+            const allowedUseCases = new Set(["overload", "over_voltage", "under_voltage"]);
+            if (use_case && !allowedUseCases.has(use_case)) {
+              errors.push(`Use case must be one of: overload, over_voltage, under_voltage. Got: ${use_case}`);
+            }
+
+            // If creating a new catalog, require title/description
+            if (/create new catalog/i.test(catalog_action)) {
+              if (!catalog_title) errors.push("Missing: Catalog title (required when creating a new catalog)");
+              if (!catalog_description) errors.push("Missing: Catalog description (required when creating a new catalog)");
+            }
+
+            // Output values for next steps
+            core.setOutput("errors", JSON.stringify(errors));
+            core.setOutput("catalog_action", catalog_action);
+            core.setOutput("catalog_id", catalog_id);
+            core.setOutput("catalog_title", catalog_title);
+            core.setOutput("catalog_description", catalog_description);
+            core.setOutput("dataset_title", dataset_title);
+            core.setOutput("dataset_description", dataset_description);
+            core.setOutput("use_case", use_case);
+            core.setOutput("location", location);
+            core.setOutput("concepts", concepts);
+            core.setOutput("distributions", distributions);
+
+      - name: Comment and stop on validation errors
+        if: ${{ fromJSON(steps.parse.outputs.errors)[0] != null }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const errors = JSON.parse(`${{ steps.parse.outputs.errors }}`);
+            const msg =
+              "❌ **Catalog intake validation failed**\n\n" +
+              errors.map(e => `- ${e}`).join("\n") +
+              "\n\nPlease edit the issue to fix these fields, then the workflow will re-run.";
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: msg
+            });
+            core.setFailed("Validation failed");
+
+      - name: Create or update catalog YAML and append dataset
+        id: write
+        run: |
+          set -euo pipefail
+
+          CATALOG_ID="${{ steps.parse.outputs.catalog_id }}"
+          CATALOG_FILE="catalogs/${CATALOG_ID}.yaml"
+          ACTION="${{ steps.parse.outputs.catalog_action }}"
+
+          mkdir -p catalogs
+
+          # If Create new catalog: ensure it doesn't already exist, then create skeleton
+          if echo "$ACTION" | grep -qi "create new catalog"; then
+            if [ -f "$CATALOG_FILE" ]; then
+              echo "CATALOG_EXISTS=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            cat > "$CATALOG_FILE" <<'YAML'
+          catalog:
+            id: __CATALOG_ID__
+            title: "__CATALOG_TITLE__"
+            description: "__CATALOG_DESCRIPTION__"
+            version: 1
+
+          datasets: []
+          YAML
+
+            # Replace placeholders safely
+            python - <<'PY'
+          import pathlib
+          p = pathlib.Path("catalogs/${CATALOG_ID}.yaml")
+          text = p.read_text()
+          text = text.replace("__CATALOG_ID__", "${{ steps.parse.outputs.catalog_id }}")
+          text = text.replace("__CATALOG_TITLE__", "${{ steps.parse.outputs.catalog_title }}".replace('"','\\"'))
+          text = text.replace("__CATALOG_DESCRIPTION__", "${{ steps.parse.outputs.catalog_description }}".replace('"','\\"'))
+          p.write_text(text)
+          PY
+          fi
+
+          # If Update existing catalog: ensure it exists
+          if echo "$ACTION" | grep -qi "update existing catalog"; then
+            if [ ! -f "$CATALOG_FILE" ]; then
+              echo "CATALOG_MISSING=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+
+          # Append dataset entry (simple append; assumes single-writer as agreed)
+          # Dataset ID scheme: <catalog-id>-<use_case>-<yyyymmdd>-<issue_number>
+          ISSUE_NUM="${{ github.event.issue.number }}"
+          DATE="$(date +%Y%m%d)"
+          USE_CASE="${{ steps.parse.outputs.use_case }}"
+          DATASET_ID="${CATALOG_ID}-${USE_CASE}-${DATE}-${ISSUE_NUM}"
+
+          # Build concepts list (optional)
+          CONCEPTS_RAW="${{ steps.parse.outputs.concepts }}"
+          if [ -n "${CONCEPTS_RAW}" ]; then
+            # normalize into YAML inline list
+            CONCEPTS_LIST=$(python - <<'PY'
+          import os
+          raw = os.environ.get("CONCEPTS_RAW","")
+          items = [x.strip() for x in raw.split(",") if x.strip()]
+          if not items:
+              print("")
+          else:
+              print("[{}]".format(", ".join(items)))
+          PY
+            )
+          else
+            CONCEPTS_LIST=""
+          fi
+
+          # Build distributions list (optional, one per line)
+          DIST_RAW="${{ steps.parse.outputs.distributions }}"
+          DIST_BLOCK=""
+          if [ -n "${DIST_RAW}" ]; then
+            DIST_BLOCK="    distributions:\n"
+            while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              # Store as a simple access string for now; you can enhance later
+              DIST_BLOCK="${DIST_BLOCK}      - access: \"${line//\"/\\\"}\"\n"
+            done <<< "$DIST_RAW"
+          fi
+
+          # Append YAML
+          python - <<'PY'
+          import os
+          from datetime import date
+          import pathlib
+
+          catalog_file = pathlib.Path(os.environ["CATALOG_FILE"])
+          dataset_id = os.environ["DATASET_ID"]
+          dataset_title = os.environ["DATASET_TITLE"]
+          dataset_description = os.environ["DATASET_DESCRIPTION"]
+          use_case = os.environ["USE_CASE"]
+          location = os.environ["LOCATION"]
+          concepts_list = os.environ.get("CONCEPTS_LIST","").strip()
+          dist_block = os.environ.get("DIST_BLOCK","")
+
+          entry = []
+          entry.append("  - id: " + dataset_id)
+          entry.append("    title: \"" + dataset_title.replace('\"','\\\"') + "\"")
+          entry.append("    description: \"" + dataset_description.replace('\"','\\\"') + "\"")
+          entry.append("    use_case: " + use_case)
+          entry.append("    location: \"" + location.replace('\"','\\\"') + "\"")
+          if concepts_list:
+              entry.append("    concepts: " + concepts_list)
+          entry.append("    created: " + date.today().isoformat())
+          if dist_block:
+              # dist_block already has correct indentation/lines
+              entry.append(dist_block.rstrip("\n"))
+
+          text = catalog_file.read_text().rstrip() + "\n\n" + "\n".join(entry) + "\n"
+          catalog_file.write_text(text)
+          PY
+        env:
+          CATALOG_FILE: catalogs/${{ steps.parse.outputs.catalog_id }}.yaml
+          DATASET_ID: ${{ steps.parse.outputs.catalog_id }}-${{ steps.parse.outputs.use_case }}-${{ github.run_id }}-${{ github.event.issue.number }}
+          DATASET_TITLE: ${{ steps.parse.outputs.dataset_title }}
+          DATASET_DESCRIPTION: ${{ steps.parse.outputs.dataset_description }}
+          USE_CASE: ${{ steps.parse.outputs.use_case }}
+          LOCATION: ${{ steps.parse.outputs.location }}
+          CONCEPTS_RAW: ${{ steps.parse.outputs.concepts }}
+          DIST_BLOCK: ""
+          CONCEPTS_LIST: ""
+          DIST_RAW: ${{ steps.parse.outputs.distributions }}
+
+      - name: Comment if catalog exists (create requested)
+        if: ${{ steps.write.outputs.CATALOG_EXISTS == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "⚠️ You selected **Create new catalog**, but `catalogs/${{ steps.parse.outputs.catalog_id }}.yaml` already exists. Please change to **Update existing catalog**."
+            });
+            core.setFailed("Catalog already exists")
+
+      - name: Comment if catalog missing (update requested)
+        if: ${{ steps.write.outputs.CATALOG_MISSING == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "⚠️ You selected **Update existing catalog**, but `catalogs/${{ steps.parse.outputs.catalog_id }}.yaml` was not found. Please change to **Create new catalog** or use the correct Catalog ID."
+            });
+            core.setFailed("Catalog missing")
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Catalog intake: append dataset to ${{ steps.parse.outputs.catalog_id }}"
+          branch: "catalog-intake/${{ steps.parse.outputs.catalog_id }}/${{ github.event.issue.number }}"
+          title: "Catalog intake: ${{ steps.parse.outputs.dataset_title }}"
+          body: |
+            This PR was automatically generated from issue #${{ github.event.issue.number }}.
+
+            - Catalog: `${{ steps.parse.outputs.catalog_id }}`
+            - Action: `${{ steps.parse.outputs.catalog_action }}`
+            - Use case: `${{ steps.parse.outputs.use_case }}`
+
+            After merge to `main`, the existing build/deploy workflow will regenerate the catalog and site. 【1-d3b149】
+          labels: "catalog-intake-pr"
