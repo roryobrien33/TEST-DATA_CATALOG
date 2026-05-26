@@ -24,7 +24,7 @@ body:
     attributes:
       label: Catalog ID (existing)
       description: "Required for 'Update existing catalog'. Example: EPRI-EUROPE-GERMAN-NODE-DATASETS-VOLUME-1-478N78"
-      placeholder: "EPRI-EUROPE-GERMAN-NODE-DATASETS-VOLUME-1-478N78"
+      placeholder: "(ORGANISATION)-(PROJECT-NAME)-(DATASET-ID)-######"
     validations:
       required: false
 
@@ -33,7 +33,7 @@ body:
     attributes:
       label: Catalog name
       description: "Required for 'Create new catalog'. You can type anything; the workflow will generate a unique ID."
-      placeholder: "EPRI Europe - German_Node Datasets Volume-1"
+      placeholder: "(ORGANISATION)-(PROJECT-NAME)-(DATASET-ID)"
     validations:
       required: false
 
@@ -42,7 +42,7 @@ body:
     attributes:
       label: Catalog title (required if creating a new catalog)
       description: "Only required when creating a new catalog."
-      placeholder: "EPRI Europe – German Node Datasets Volume 1"
+      placeholder: "(ORGANISATION)-(PROJECT-NAME)"
     validations:
       required: false
 
@@ -60,7 +60,7 @@ body:
     attributes:
       label: Allowed use cases for this catalog (required if creating a new catalog)
       description: "Comma-separated list. Example: overload, over_voltage, under_voltage"
-      placeholder: "overload, over_voltage, under_voltage"
+      placeholder: "powerflow_analysis, fault_analysis, transient_stability_analysis "
     validations:
       required: false
 
@@ -72,7 +72,7 @@ body:
     id: dataset_title
     attributes:
       label: Dataset title
-      placeholder: "Overload scenarios – German nodes"
+      placeholder: "Overload simulation - GRID01"
     validations:
       required: true
 
@@ -89,15 +89,15 @@ body:
     attributes:
       label: Dataset use case
       description: "Must match one of the Allowed use cases defined in the target catalog."
-      placeholder: "overload"
+      placeholder: "fault_analysis"
     validations:
       required: true
 
   - type: input
     id: location
     attributes:
-      label: Location (high-level)
-      placeholder: "Germany (high-level)"
+      label: Geographical Location (high-level)
+      placeholder: "Munich, Germany"
     validations:
       required: true
 
