@@ -36,9 +36,14 @@ jobs:
           script: |
             const body = context.payload.issue.body || "";
 
+            function escapeRegExp(s) {
+              return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            }
+
             function getField(heading) {
               // Captures text after "### Heading" until the next "### " heading
-              const re = new RegExp(`###\\s+${heading}\\s*\\n([\\s\\S]*?)(?=\\n###\\s+|$)`, "i");
+              const h = escapeRegExp(heading);
+              const re = new RegExp(`###\\s+${h}\\s*\\n([\\s\\S]*?)(?=\\n###\\s+|$)`, "i");
               const m = body.match(re);
               if (!m) return "";
               return m[1].trim().replace(/^_No response_$/i, "").trim();
@@ -355,3 +360,4 @@ jobs:
 
             After merge to `main`, your existing Pages deployment workflow will rebuild and publish the static catalog site.
           labels: "catalog-intake-pr"
+``
