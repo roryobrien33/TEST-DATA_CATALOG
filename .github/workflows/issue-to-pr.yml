@@ -1,4 +1,4 @@
-name: Issue Form → Catalog YAML → PR
+name: Issue Forms → Catalog YAML → PR
 
 on:
   issues:
@@ -11,14 +11,25 @@ permissions:
 
 jobs:
   intake:
-    if: contains(github.event.issue.labels.*.name, 'catalog-intake')
+    # Run only for our intake labels (create catalog OR add dataset)
+    if: |
+      contains(github.event.issue.labels.*.name, 'catalog-create') ||
+      contains(github.event.issue.labels.*.name, 'catalog-add-dataset')
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Parse Issue Form fields + Generate Catalog ID
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: python -m pip install --upgrade pip pyyaml
+
+      - name: Parse Issue Form fields
         id: parse
         uses: actions/github-script@v7
         with:
@@ -26,86 +37,122 @@ jobs:
             const body = context.payload.issue.body || "";
 
             function getField(heading) {
+              // Captures text after "### Heading" until the next "### " heading
               const re = new RegExp(`###\\s+${heading}\\s*\\n([\\s\\S]*?)(?=\\n###\\s+|$)`, "i");
               const m = body.match(re);
               if (!m) return "";
               return m[1].trim().replace(/^_No response_$/i, "").trim();
             }
 
-            // These headings MUST match the Issue Form labels exactly
-            const catalog_action = getField("Catalog action");
-            const catalog_name = getField("Catalog name");
-            const catalog_title = getField("Catalog title (required if creating a new catalog)");
-            const catalog_description = getField("Catalog description (required if creating a new catalog)");
-            const dataset_title = getField("Dataset title");
-            const dataset_description = getField("Dataset description");
-            const use_case = getField("Use case");
-            const location = getField("Location (high-level)");
-            const concepts = getField("Concepts / tags (optional)");
-            const distributions = getField("Distribution links (optional)");
+            const labels = (context.payload.issue.labels || []).map(l => l.name);
+            const isCreateCatalog = labels.includes("catalog-create");
+            const isAddDataset = labels.includes("catalog-add-dataset");
 
-            // Normalize base: separators -> hyphen; uppercase; keep A-Z0-9-
-            function normalizeBase(name) {
+            // ---------- Template A fields (Create Catalog) ----------
+            const catalog_name_A = getField("Catalog name");
+            const catalog_description_A = getField("Catalog description");
+            const catalog_use_cases_A = getField("Allowed use cases (comma-separated)");
+            const catalog_owner_A = getField("Catalog owner / organisation (optional)");
+            const catalog_contact_A = getField("Contact (optional)");
+
+            // ---------- Template B fields (Add Dataset) ----------
+            // (We’ll create Template B next; these headings must match that template.)
+            const catalog_id_existing_B = getField("Catalog ID (existing)");
+            const dataset_title_B = getField("Dataset title");
+            const dataset_description_B = getField("Dataset description");
+            const dataset_use_case_B = getField("Dataset use case");
+            const location_B = getField("Geographical Location (high-level)");
+            const concepts_B = getField("Concepts / tags (optional)");
+            const distributions_B = getField("Distribution links (optional)");
+
+            // ---------- Helpers ----------
+            function normalizeIdBase(name) {
+              // Your rule: spaces, hyphens, underscores (and most punctuation) => "-"
+              // UPPERCASE; keep only A-Z0-9-; collapse hyphens; trim.
               return name
                 .trim()
                 .toUpperCase()
-                .replace(/[\s\-_]+/g, "-")     // space/_/- runs => "-"
-                .replace(/[^A-Z0-9-]/g, "-")   // other punctuation => "-"
-                .replace(/-+/g, "-")           // collapse hyphens
-                .replace(/^-|-$/g, "");        // trim hyphens
+                .replace(/[\s\-_]+/g, "-")
+                .replace(/[^A-Z0-9-]/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-|-$/g, "");
             }
 
-            // 6-char token (0-9A-Z), safe for filenames/URIs
             function randomToken6() {
               const n = Math.floor(Math.random() * (36 ** 6));
               return n.toString(36).toUpperCase().padStart(6, "0");
             }
 
+            function normalizeUseCase(s) {
+              // Normalize user input for matching:
+              // lower, spaces/_ => -, drop punctuation, collapse hyphens.
+              return s
+                .trim()
+                .toLowerCase()
+                .replace(/[\s_]+/g, "-")
+                .replace(/[^a-z0-9-]/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-|-$/g, "");
+            }
+
+            function parseUseCases(raw) {
+              if (!raw) return [];
+              return raw
+                .split(",")
+                .map(x => normalizeUseCase(x))
+                .filter(Boolean);
+            }
+
+            // ---------- Validate ----------
             const errors = [];
-            if (!catalog_action) errors.push("Missing: Catalog action");
-            if (!catalog_name) errors.push("Missing: Catalog name");
-            if (!dataset_title) errors.push("Missing: Dataset title");
-            if (!dataset_description) errors.push("Missing: Dataset description");
-            if (!use_case) errors.push("Missing: Use case");
-            if (!location) errors.push("Missing: Location (high-level)");
 
-            // Controlled vocab for use_case
-            const allowedUseCases = new Set(["overload", "over_voltage", "under_voltage"]);
-            if (use_case && !allowedUseCases.has(use_case)) {
-              errors.push(`Use case must be one of: overload, over_voltage, under_voltage. Got: ${use_case}`);
+            if (isCreateCatalog) {
+              if (!catalog_name_A) errors.push("Missing: Catalog name");
+              if (!catalog_description_A) errors.push("Missing: Catalog description");
+              if (!catalog_use_cases_A) errors.push("Missing: Allowed use cases (comma-separated)");
+              const base = catalog_name_A ? normalizeIdBase(catalog_name_A) : "";
+              if (catalog_name_A && !base) errors.push("Catalog name produced an empty Catalog ID after normalization.");
+              const ucs = parseUseCases(catalog_use_cases_A);
+              if (catalog_use_cases_A && ucs.length === 0) errors.push("Allowed use cases list is empty after normalization (check commas/spelling).");
             }
 
-            // If creating a new catalog, require title/description
-            if (/create new catalog/i.test(catalog_action)) {
-              if (!catalog_title) errors.push("Missing: Catalog title (required when creating a new catalog)");
-              if (!catalog_description) errors.push("Missing: Catalog description (required when creating a new catalog)");
+            if (isAddDataset) {
+              if (!catalog_id_existing_B) errors.push("Missing: Catalog ID (existing)");
+              if (!dataset_title_B) errors.push("Missing: Dataset title");
+              if (!dataset_description_B) errors.push("Missing: Dataset description");
+              if (!dataset_use_case_B) errors.push("Missing: Dataset use case");
+              if (!location_B) errors.push("Missing: Geographical Location (high-level)");
             }
 
-            // Generate catalog_id
-            let catalog_id = "";
-            let catalog_base = "";
-            if (catalog_name) {
-              catalog_base = normalizeBase(catalog_name);
-              if (!catalog_base) {
-                errors.push("Catalog name produced an empty ID after normalization. Please include letters/numbers.");
-              } else {
-                catalog_id = `${catalog_base}-${randomToken6()}`;
-              }
+            // ---------- Outputs ----------
+            // Generated catalog id only for create-catalog path
+            let generated_catalog_id = "";
+            let generated_catalog_base = "";
+            if (isCreateCatalog && catalog_name_A) {
+              generated_catalog_base = normalizeIdBase(catalog_name_A);
+              generated_catalog_id = `${generated_catalog_base}-${randomToken6()}`;
             }
 
             core.setOutput("errors", JSON.stringify(errors));
-            core.setOutput("catalog_action", catalog_action);
-            core.setOutput("catalog_name", catalog_name);
-            core.setOutput("catalog_title", catalog_title);
-            core.setOutput("catalog_description", catalog_description);
-            core.setOutput("catalog_id", catalog_id);
-            core.setOutput("catalog_base", catalog_base);
-            core.setOutput("dataset_title", dataset_title);
-            core.setOutput("dataset_description", dataset_description);
-            core.setOutput("use_case", use_case);
-            core.setOutput("location", location);
-            core.setOutput("concepts", concepts);
-            core.setOutput("distributions", distributions);
+            core.setOutput("is_create_catalog", String(isCreateCatalog));
+            core.setOutput("is_add_dataset", String(isAddDataset));
+
+            core.setOutput("catalog_name_A", catalog_name_A);
+            core.setOutput("catalog_description_A", catalog_description_A);
+            core.setOutput("catalog_use_cases_A", catalog_use_cases_A);
+            core.setOutput("catalog_owner_A", catalog_owner_A);
+            core.setOutput("catalog_contact_A", catalog_contact_A);
+
+            core.setOutput("generated_catalog_id", generated_catalog_id);
+            core.setOutput("generated_catalog_base", generated_catalog_base);
+
+            core.setOutput("catalog_id_existing_B", catalog_id_existing_B);
+            core.setOutput("dataset_title_B", dataset_title_B);
+            core.setOutput("dataset_description_B", dataset_description_B);
+            core.setOutput("dataset_use_case_B", dataset_use_case_B);
+            core.setOutput("location_B", location_B);
+            core.setOutput("concepts_B", concepts_B);
+            core.setOutput("distributions_B", distributions_B);
 
       - name: Comment and stop on validation errors
         if: ${{ fromJSON(steps.parse.outputs.errors)[0] != null }}
@@ -125,8 +172,9 @@ jobs:
             });
             core.setFailed("Validation failed");
 
-      - name: Comment generated Catalog ID (create only)
-        if: ${{ contains(steps.parse.outputs.catalog_action, 'Create new catalog') }}
+      # ---------- CREATE CATALOG PATH ----------
+      - name: Comment generated Catalog ID (create-catalog)
+        if: ${{ steps.parse.outputs.is_create_catalog == 'true' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -134,209 +182,176 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.issue.number,
-              body: `✅ Generated Catalog ID: \`${{ steps.parse.outputs.catalog_id }}\`\n\nCatalog name: \`${{ steps.parse.outputs.catalog_name }}\``
+              body: `✅ Generated Catalog ID: \`${{ steps.parse.outputs.generated_catalog_id }}\`\n\nUse this Catalog ID when adding datasets.`
             });
 
-      - name: Create or update catalog YAML and append dataset
-        id: write
+      - name: Create catalog YAML (create-catalog)
+        if: ${{ steps.parse.outputs.is_create_catalog == 'true' }}
         run: |
           set -euo pipefail
-
-          ACTION="${{ steps.parse.outputs.catalog_action }}"
-          CATALOG_NAME="${{ steps.parse.outputs.catalog_name }}"
-          CATALOG_TITLE="${{ steps.parse.outputs.catalog_title }}"
-          CATALOG_DESCRIPTION="${{ steps.parse.outputs.catalog_description }}"
-          GENERATED_ID="${{ steps.parse.outputs.catalog_id }}"
-          CATALOG_BASE="${{ steps.parse.outputs.catalog_base }}"
-
           mkdir -p catalogs
 
           python - <<'PY'
-          import os, re, glob, datetime, random, string, pathlib
+          import os, yaml, re, pathlib, datetime
 
-          action = os.environ["ACTION"]
+          catalog_id = os.environ["CATALOG_ID"]
           catalog_name = os.environ["CATALOG_NAME"]
-          catalog_title = os.environ["CATALOG_TITLE"]
           catalog_description = os.environ["CATALOG_DESCRIPTION"]
-          generated_id = os.environ["GENERATED_ID"]
-          catalog_base = os.environ["CATALOG_BASE"]
+          raw_use_cases = os.environ["CATALOG_USE_CASES"]
+          owner = os.environ.get("CATALOG_OWNER","").strip()
+          contact = os.environ.get("CATALOG_CONTACT","").strip()
 
-          dataset_title = os.environ["DATASET_TITLE"]
-          dataset_description = os.environ["DATASET_DESCRIPTION"]
-          use_case = os.environ["USE_CASE"]
-          location = os.environ["LOCATION"]
-          concepts_raw = os.environ.get("CONCEPTS_RAW","").strip()
-          dists_raw = os.environ.get("DISTS_RAW","").strip()
-          issue_number = os.environ["ISSUE_NUMBER"]
+          def norm_use_case(s: str) -> str:
+            s = s.strip().lower()
+            s = re.sub(r"[\s_]+", "-", s)
+            s = re.sub(r"[^a-z0-9-]", "-", s)
+            s = re.sub(r"-+", "-", s).strip("-")
+            return s
 
-          def norm_title(s: str) -> str:
-            return re.sub(r"\s+", " ", s.strip()).lower()
+          use_cases = [norm_use_case(x) for x in raw_use_cases.split(",")]
+          use_cases = [x for x in use_cases if x]
 
-          def extract_catalog_title(text: str) -> str:
-            # Expect our generated structure:
-            # catalog:
-            #   id: ...
-            #   title: "..."
-            m = re.search(r'(?m)^\s*catalog:\s*\n(?:^\s{2,}.*\n)*?^\s{2,}title:\s*\"?(.+?)\"?\s*$', text)
-            return (m.group(1).strip() if m else "")
+          p = pathlib.Path(f"catalogs/{catalog_id}.yaml")
+          if p.exists():
+            raise SystemExit(f"Catalog file already exists: {p}")
 
-          def file_for_update_by_name(name: str):
-            wanted = norm_title(name)
-            matches = []
-            for fp in glob.glob("catalogs/*.yaml"):
-              txt = pathlib.Path(fp).read_text(encoding="utf-8")
-              title = extract_catalog_title(txt)
-              if title and norm_title(title) == wanted:
-                matches.append(fp)
-            return matches
+          doc = {
+            "catalog": {
+              "id": catalog_id,
+              "title": catalog_name,
+              "description": catalog_description,
+              "version": 1,
+              "use_cases": use_cases,
+            },
+            "datasets": []
+          }
+          if owner:
+            doc["catalog"]["owner"] = owner
+          if contact:
+            doc["catalog"]["contact"] = contact
 
-          def yaml_escape(s: str) -> str:
-            return s.replace('\\', '\\\\').replace('"','\\"')
-
-          def parse_concepts(raw: str):
-            if not raw:
-              return None
-            items = [x.strip() for x in raw.split(",") if x.strip()]
-            if not items:
-              return None
-            # Keep as uppercase-hyphen tokens? leave user-provided for now
-            return items
-
-          def parse_dists(raw: str):
-            if not raw:
-              return None
-            lines = [x.strip() for x in raw.splitlines() if x.strip()]
-            if not lines:
-              return None
-            return lines
-
-          def ensure_catalog_file_create():
-            fp = f"catalogs/{generated_id}.yaml"
-            p = pathlib.Path(fp)
-            if p.exists():
-              # Extremely unlikely with random suffix; but still handle
-              raise SystemExit(f"CATALOG_EXISTS:{fp}")
-
-            content = (
-              "catalog:\n"
-              f"  id: {generated_id}\n"
-              f"  title: \"{yaml_escape(catalog_title)}\"\n"
-              f"  description: \"{yaml_escape(catalog_description)}\"\n"
-              "  version: 1\n"
-              "\n"
-              "datasets: []\n"
-            )
-            p.write_text(content, encoding="utf-8")
-            return fp
-
-          def ensure_catalog_file_update():
-            matches = file_for_update_by_name(catalog_name)
-            if len(matches) == 0:
-              raise SystemExit("CATALOG_NOT_FOUND_BY_NAME")
-            if len(matches) > 1:
-              raise SystemExit("CATALOG_NAME_AMBIGUOUS")
-            return matches[0]
-
-          def append_dataset(fp: str):
-            p = pathlib.Path(fp)
-            txt = p.read_text(encoding="utf-8").rstrip() + "\n"
-
-            # Create dataset id: <CATALOGBASE>-<USECASE>-<YYYYMMDD>-<ISSUE#>
-            date = datetime.date.today().strftime("%Y%m%d")
-            dataset_id = f"{catalog_base}-{use_case.upper().replace('_','-')}-{date}-{issue_number}"
-
-            concepts = parse_concepts(concepts_raw)
-            dists = parse_dists(dists_raw)
-
-            entry_lines = []
-            entry_lines.append(f"  - id: {dataset_id}")
-            entry_lines.append(f"    title: \"{yaml_escape(dataset_title)}\"")
-            entry_lines.append(f"    description: \"{yaml_escape(dataset_description)}\"")
-            entry_lines.append(f"    use_case: {use_case}")
-            entry_lines.append(f"    location: \"{yaml_escape(location)}\"")
-            if concepts:
-              # YAML list
-              concepts_escaped = [yaml_escape(x) for x in concepts]
-              entry_lines.append("    concepts: [" + ", ".join(f"\"{c}\"" for c in concepts_escaped) + "]")
-            entry_lines.append(f"    created: {datetime.date.today().isoformat()}")
-            if dists:
-              entry_lines.append("    distributions:")
-              for line in dists:
-                entry_lines.append(f"      - access: \"{yaml_escape(line)}\"")
-
-            entry = "\n".join(entry_lines) + "\n"
-
-            if re.search(r'(?m)^datasets:\\s*\\[\\]\\s*$', txt) or re.search(r'(?m)^datasets:\\s*\\[\\s*\\]\\s*$', txt) or "datasets: []" in txt:
-              txt = txt.replace("datasets: []", "datasets:\n" + entry.rstrip() + "\n")
-            else:
-              # Append under datasets (assumes datasets already exists as a list)
-              txt = txt.rstrip() + "\n" + entry
-
-            p.write_text(txt, encoding="utf-8")
-            return dataset_id
-
-          # Choose create vs update
-          if "Create new catalog" in action:
-            fp = ensure_catalog_file_create()
-          else:
-            fp = ensure_catalog_file_update()
-
-          dataset_id = append_dataset(fp)
-
-          # Write outputs for later steps via stdout markers
-          print(f"CATALOG_FILE={fp}")
-          print(f"DATASET_ID={dataset_id}")
+          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
           PY
         env:
-          ACTION: ${{ steps.parse.outputs.catalog_action }}
-          CATALOG_NAME: ${{ steps.parse.outputs.catalog_name }}
-          CATALOG_TITLE: ${{ steps.parse.outputs.catalog_title }}
-          CATALOG_DESCRIPTION: ${{ steps.parse.outputs.catalog_description }}
-          GENERATED_ID: ${{ steps.parse.outputs.catalog_id }}
-          CATALOG_BASE: ${{ steps.parse.outputs.catalog_base }}
-          DATASET_TITLE: ${{ steps.parse.outputs.dataset_title }}
-          DATASET_DESCRIPTION: ${{ steps.parse.outputs.dataset_description }}
-          USE_CASE: ${{ steps.parse.outputs.use_case }}
-          LOCATION: ${{ steps.parse.outputs.location }}
-          CONCEPTS_RAW: ${{ steps.parse.outputs.concepts }}
-          DISTS_RAW: ${{ steps.parse.outputs.distributions }}
+          CATALOG_ID: ${{ steps.parse.outputs.generated_catalog_id }}
+          CATALOG_NAME: ${{ steps.parse.outputs.catalog_name_A }}
+          CATALOG_DESCRIPTION: ${{ steps.parse.outputs.catalog_description_A }}
+          CATALOG_USE_CASES: ${{ steps.parse.outputs.catalog_use_cases_A }}
+          CATALOG_OWNER: ${{ steps.parse.outputs.catalog_owner_A }}
+          CATALOG_CONTACT: ${{ steps.parse.outputs.catalog_contact_A }}
+
+      # ---------- ADD DATASET PATH ----------
+      - name: Update catalog YAML (add-dataset)
+        if: ${{ steps.parse.outputs.is_add_dataset == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p catalogs
+
+          python - <<'PY'
+          import os, yaml, re, pathlib, datetime
+
+          catalog_id = os.environ["CATALOG_ID_EXISTING"].strip()
+          p = pathlib.Path(f"catalogs/{catalog_id}.yaml")
+          if not p.exists():
+            raise SystemExit(f"Catalog not found: {p}")
+
+          doc = yaml.safe_load(p.read_text(encoding="utf-8"))
+          if not isinstance(doc, dict) or "catalog" not in doc:
+            raise SystemExit("Invalid catalog YAML structure (missing 'catalog').")
+
+          allowed = doc.get("catalog", {}).get("use_cases", []) or []
+          if not isinstance(allowed, list):
+            raise SystemExit("Invalid catalog YAML structure (catalog.use_cases must be a list).")
+
+          def norm_use_case(s: str) -> str:
+            s = s.strip().lower()
+            s = re.sub(r"[\s_]+", "-", s)
+            s = re.sub(r"[^a-z0-9-]", "-", s)
+            s = re.sub(r"-+", "-", s).strip("-")
+            return s
+
+          dataset_use_case_raw = os.environ["DATASET_USE_CASE"]
+          dataset_use_case = norm_use_case(dataset_use_case_raw)
+
+          if dataset_use_case not in set(allowed):
+            raise SystemExit(
+              "Use case not allowed for this catalog. "
+              f"Provided: '{dataset_use_case_raw}' (normalized: '{dataset_use_case}'). "
+              f"Allowed: {', '.join(allowed)}"
+            )
+
+          datasets = doc.get("datasets", [])
+          if datasets is None:
+            datasets = []
+          if not isinstance(datasets, list):
+            raise SystemExit("Invalid catalog YAML structure (datasets must be a list).")
+
+          # Dataset ID scheme: <CATALOG-ID>-<YYYYMMDD>-<ISSUE#>
+          issue_number = os.environ["ISSUE_NUMBER"]
+          date = datetime.date.today().strftime("%Y%m%d")
+          dataset_id = f"{catalog_id}-{date}-{issue_number}"
+
+          def split_csv(raw: str):
+            if not raw.strip():
+              return []
+            return [x.strip() for x in raw.split(",") if x.strip()]
+
+          concepts = split_csv(os.environ.get("CONCEPTS",""))
+          dists = [x.strip() for x in os.environ.get("DISTRIBUTIONS","").splitlines() if x.strip()]
+
+          entry = {
+            "id": dataset_id,
+            "title": os.environ["DATASET_TITLE"].strip(),
+            "description": os.environ["DATASET_DESCRIPTION"].strip(),
+            "use_case": dataset_use_case,
+            "location": os.environ["LOCATION"].strip(),
+            "created": datetime.date.today().isoformat(),
+          }
+          if concepts:
+            entry["concepts"] = concepts
+          if dists:
+            entry["distributions"] = [{"access": x} for x in dists]
+
+          datasets.append(entry)
+          doc["datasets"] = datasets
+
+          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
+          PY
+        env:
+          CATALOG_ID_EXISTING: ${{ steps.parse.outputs.catalog_id_existing_B }}
+          DATASET_TITLE: ${{ steps.parse.outputs.dataset_title_B }}
+          DATASET_DESCRIPTION: ${{ steps.parse.outputs.dataset_description_B }}
+          DATASET_USE_CASE: ${{ steps.parse.outputs.dataset_use_case_B }}
+          LOCATION: ${{ steps.parse.outputs.location_B }}
+          CONCEPTS: ${{ steps.parse.outputs.concepts_B }}
+          DISTRIBUTIONS: ${{ steps.parse.outputs.distributions_B }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
 
-      - name: Handle update errors (catalog not found / ambiguous)
-        if: ${{ failure() }}
+      - name: Comment add-dataset failure details
+        if: ${{ failure() && steps.parse.outputs.is_add_dataset == 'true' }}
         uses: actions/github-script@v7
         with:
           script: |
-            // If the previous step fails, comment a generic hint.
-            // (GitHub doesn't expose the Python exit reason cleanly here without extra plumbing.)
-            const action = `${{ steps.parse.outputs.catalog_action }}`;
-            if (action.includes("Update existing catalog")) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.payload.issue.number,
-                body:
-                  "⚠️ **Update failed**.\n\n" +
-                  "Most likely causes:\n" +
-                  "- No existing catalog has a matching `catalog.title` for the provided **Catalog name**\n" +
-                  "- More than one catalog has the same title (ambiguous)\n\n" +
-                  "Fix: Ensure the Catalog name exactly matches an existing catalog title."
-              });
-            }
+            // Add a generic note; details are in the Actions logs.
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "⚠️ Dataset update failed. Please open the Actions run logs for the exact reason (most commonly: Catalog ID not found, or dataset use case not in catalog.use_cases)."
+            });
 
       - name: Create Pull Request
         if: ${{ success() }}
         uses: peter-evans/create-pull-request@v7
         with:
-          commit-message: "Catalog intake: append dataset"
+          commit-message: "Catalog intake: apply changes from issue #${{ github.event.issue.number }}"
           branch: "catalog-intake/${{ github.event.issue.number }}"
-          title: "Catalog intake: ${{ steps.parse.outputs.dataset_title }}"
+          title: "Catalog intake: issue #${{ github.event.issue.number }}"
           body: |
             This PR was automatically generated from issue #${{ github.event.issue.number }}.
 
-            - Catalog action: `${{ steps.parse.outputs.catalog_action }}`
-            - Catalog name: `${{ steps.parse.outputs.catalog_name }}`
-            - Generated/used catalog file: `catalogs/${{ steps.parse.outputs.catalog_id }}.yaml` (for create)
+            - Labels: `${{ join(github.event.issue.labels.*.name, ', ') }}`
+            - Create-catalog ID (if applicable): `${{ steps.parse.outputs.generated_catalog_id }}`
 
-            After merge to `main`, your existing build/deploy workflow will regenerate the catalog and site.
+            After merge to `main`, your existing Pages deployment workflow will rebuild and publish the static catalog site.
           labels: "catalog-intake-pr"
