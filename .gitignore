@@ -181,3 +181,8 @@ cython_debug/
 
 
 .vscode/
+
+# Generated data catalog outputs
+data-catalog/data-catalog.yaml
+data-catalog/data-catalog.ttl
+``
