@@ -1,0 +1,10 @@
+catalog:
+  id: A-SF0JMV
+  title: A
+  description: A
+  version: 1
+  use_cases:
+  - a-a
+  owner: A
+  contact: A
+datasets: []
