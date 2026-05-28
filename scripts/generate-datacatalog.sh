@@ -19,7 +19,7 @@ PREFIX="data-catalog/prefix.yaml"
 uv run python scripts/merge-catalogs.py
 
 # Confirm merged input exists
-[[ -f "${INPUT}"  ]] || { echo "ERROR: merged input YAML not found: ${REPO_ROOT}/${INPUT}" >&2; exit 1; }
+[[ -f "${INPUT}" ]] || { echo "ERROR: merged input YAML not found: ${REPO_ROOT}/${INPUT}" >&2; exit 1; }
 
 # Convert merged YAML → TTL
 uv run linkml-convert \
