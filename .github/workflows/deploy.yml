@@ -1,7 +1,5 @@
 name: Build & Deploy Data Catalog
 
-# --------------------------------------------------------------
-# Trigger on pushes to the default branch and on manual dispatch
 on:
   workflow_dispatch:
   push:
@@ -52,26 +50,29 @@ jobs:
       - name: Patch generator to skip empty theme wordcloud
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import site
+
+          # Use the same environment as the generator (uv/.venv)
+          uv run python - <<'PY'
           from pathlib import Path
+          import sys
 
-          target = None
-          for sp in site.getsitepackages():
-              p = Path(sp) / "simple_data_catalog_generator" / "analysis_functions.py"
-              if p.exists():
-                  target = p
-                  break
+          # Look directly inside the repo's uv venv first (most reliable)
+          candidates = list(Path(".venv").glob("lib/python*/site-packages/simple_data_catalog_generator/analysis_functions.py"))
 
-          if target is None:
-              raise SystemExit("ERROR: simple_data_catalog_generator/analysis_functions.py not found in site-packages")
+          # Fallback: if layout differs, search under .venv for the file
+          if not candidates:
+              candidates = list(Path(".venv").rglob("simple_data_catalog_generator/analysis_functions.py"))
 
+          if not candidates:
+              raise SystemExit("ERROR: simple_data_catalog_generator/analysis_functions.py not found under .venv")
+
+          target = candidates[0]
           txt = target.read_text(encoding="utf-8")
 
-          # Idempotent patch: only apply once
+          # Idempotent patch
           if "PATCH_EMPTY_WORDCLOUD_GUARD" in txt:
               print(f"OK: patch already present in {target}")
-              raise SystemExit(0)
+              sys.exit(0)
 
           needle = "wordcloud.generate_from_frequencies(frequencies=d)"
           if needle not in txt:
