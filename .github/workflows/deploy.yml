@@ -1,4 +1,4 @@
-name: Build & Deploy Data Catalog 
+name: Build & Deploy Data Catalog
 
 on:
   workflow_dispatch:
@@ -148,7 +148,6 @@ jobs:
 
               text = p.read_text(encoding="utf-8", errors="ignore")
 
-              # Use <title> text if present
               m_title = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
               if m_title:
                   title = re.sub(r"\s+", " ", m_title.group(1)).strip()
@@ -157,7 +156,6 @@ jobs:
                   if title:
                       label = title
 
-              # Try to extract first paragraph under Description section
               m_desc = re.search(
                   r'<h2[^>]*id="_description"[^>]*>.*?</h2>.*?<p>(.*?)</p>',
                   text,
@@ -169,28 +167,27 @@ jobs:
                   if raw:
                       description = raw
 
-              cards.append(
-                  f"""
-                  <article class="catalog-card">
-                    <div class="catalog-card-body">
-                      <h3 class="catalog-card-title"><a href="{html.escape(rel)}">{html.escape(label)}</a></h3>
-                      <p class="catalog-card-description">{html.escape(description)}</p>
-                    </div>
-                    <div class="catalog-card-footer">
-                      <a class="catalog-link" href="{html.escape(rel)}">Open catalog →</a>
-                    </div>
-                  </article>
-                  """
-              )
+              card_html = f"""
+              <article class="catalog-card">
+                <div class="catalog-card-body">
+                  <h3 class="catalog-card-title"><a href="{html.escape(rel)}">{html.escape(label)}</a></h3>
+                  <p class="catalog-card-description">{html.escape(description)}</p>
+                </div>
+                <div class="catalog-card-footer">
+                  <a class="catalog-link" href="{html.escape(rel)}">Open catalog →</a>
+                </div>
+              </article>
+              """
+              cards.append(card_html)
 
           if not cards:
               cards_html = """
-                <article class="catalog-card">
-                  <div class="catalog-card-body">
-                    <h3 class="catalog-card-title">No catalog pages found</h3>
-                    <p class="catalog-card-description">No generated catalog pages were found in this build.</p>
-                  </div>
-                </article>
+              <article class="catalog-card">
+                <div class="catalog-card-body">
+                  <h3 class="catalog-card-title">No catalog pages found</h3>
+                  <p class="catalog-card-description">No generated catalog pages were found in this build.</p>
+                </div>
+              </article>
               """
           else:
               cards_html = "\n".join(cards)
@@ -287,7 +284,6 @@ jobs:
                 <nav class="navbar">
                   <div class="navbar-brand">
                     <a class="navbar-item" href="./" style="display: flex; align-items: center; gap: 0.5rem;">
-                      <img src="./_/img/logo.png" alt="Data Catalog Logo" style="height: 2rem; width: auto;">
                       <span>Data Catalog</span>
                     </a>
                     <button class="navbar-burger" data-target="topbar-nav">
@@ -318,8 +314,6 @@ jobs:
                   </div>
                 </section>
               </main>
-
-              <script id="site-script" src="./_/js/site.js" data-ui-root-path="./_"></script>
             </body>
           </html>
           """
