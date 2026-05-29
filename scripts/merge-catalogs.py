@@ -63,7 +63,41 @@ def concept_id_from_label(label: str) -> str:
     return ensure_curie(f"concept-{slugify(label)}")
 
 
-def normalize_dataset(ds: dict, source_catalog_stem: str, idx: int, concepts_map: dict) -> dict:
+def build_series_from_catalog(cat: dict, source_stem: str) -> dict:
+    raw_id = first_present(cat, ["identifier", "id"], None)
+    if not raw_id:
+        raw_id = f"series-{source_stem}"
+
+    out = {"identifier": ensure_curie(str(raw_id))}
+
+    title = first_present(cat, ["title", "name"], None)
+    if title:
+        out["title"] = str(title)
+    else:
+        out["title"] = source_stem
+
+    desc = first_present(cat, ["description"], None)
+    if desc:
+        out["description"] = str(desc)
+
+    publisher = cat.get("publisher")
+    if isinstance(publisher, dict):
+        name = first_present(publisher, ["name"], None)
+        if name:
+            out["publisher"] = {"name": str(name)}
+    elif isinstance(publisher, str) and publisher.strip():
+        out["publisher"] = {"name": publisher.strip()}
+
+    return out
+
+
+def normalize_dataset(
+    ds: dict,
+    source_catalog_stem: str,
+    idx: int,
+    series_id: str,
+    concepts_map: dict,
+) -> dict:
     raw_id = first_present(ds, ["identifier", "id"], None)
     if not raw_id:
         raw_id = f"dataset-{source_catalog_stem}-{idx:04d}"
@@ -77,6 +111,18 @@ def normalize_dataset(ds: dict, source_catalog_stem: str, idx: int, concepts_map
     desc = first_present(ds, ["description"], None)
     if desc:
         out["description"] = str(desc)
+
+    # Preserve source catalog separation inside the merged catalog
+    out["inSeries"] = series_id
+
+    # Optional publisher
+    publisher = ds.get("publisher")
+    if isinstance(publisher, dict):
+        name = first_present(publisher, ["name"], None)
+        if name:
+            out["publisher"] = {"name": str(name)}
+    elif isinstance(publisher, str) and publisher.strip():
+        out["publisher"] = {"name": publisher.strip()}
 
     # Map concepts/tags/theme into schema-supported theme + top-level concepts
     labels = []
@@ -92,8 +138,9 @@ def normalize_dataset(ds: dict, source_catalog_stem: str, idx: int, concepts_map
                 lbl = first_present(item, ["prefLabel", "label", "title", "name"], None)
                 cid = first_present(item, ["identifier", "id"], None)
                 if cid:
-                    concepts_map[ensure_curie(str(cid))] = {
-                        "identifier": ensure_curie(str(cid)),
+                    cid = ensure_curie(str(cid))
+                    concepts_map[cid] = {
+                        "identifier": cid,
                         "prefLabel": lbl or str(cid),
                     }
                     labels.append(lbl or str(cid))
@@ -102,7 +149,6 @@ def normalize_dataset(ds: dict, source_catalog_stem: str, idx: int, concepts_map
     elif isinstance(theme_val, str) and theme_val.strip():
         labels.append(theme_val.strip())
 
-    # de-duplicate while preserving order
     seen = set()
     ordered_labels = []
     for lbl in labels:
@@ -123,15 +169,6 @@ def normalize_dataset(ds: dict, source_catalog_stem: str, idx: int, concepts_map
                 }
         out["theme"] = theme_ids
 
-    # Optional publisher mapping if present
-    publisher = ds.get("publisher")
-    if isinstance(publisher, dict):
-        name = first_present(publisher, ["name"], None)
-        if name:
-            out["publisher"] = {"name": str(name)}
-    elif isinstance(publisher, str) and publisher.strip():
-        out["publisher"] = {"name": publisher.strip()}
-
     return out
 
 
@@ -140,7 +177,11 @@ def main() -> None:
         glob.glob("data-catalog/user-catalogs/*.yml")
     )
 
+    if not files:
+        die("No user catalogs found. Expected at least one file matching data-catalog/user-catalogs/*.yaml (or *.yml).")
+
     all_datasets = []
+    all_series = []
     concepts_map = {}
 
     for fp in files:
@@ -148,18 +189,34 @@ def main() -> None:
         if not isinstance(doc, dict):
             die(f"{fp} must be a YAML mapping/object.")
 
+        cat = doc.get("catalog", {})
+        if cat is None:
+            cat = {}
+        if not isinstance(cat, dict):
+            die(f"{fp}: 'catalog' must be a mapping/object.")
+
+        source_stem = Path(fp).stem
+        series_obj = build_series_from_catalog(cat, source_stem)
+        series_id = series_obj["identifier"]
+        all_series.append(series_obj)
+
         datasets = doc.get("datasets", [])
         if datasets is None:
             datasets = []
         if not isinstance(datasets, list):
             die(f"{fp}: 'datasets' must be a list.")
 
-        source_stem = Path(fp).stem
         for i, ds in enumerate(datasets, start=1):
             if not isinstance(ds, dict):
                 die(f"{fp}: dataset entry #{i} must be a mapping/object.")
             all_datasets.append(
-                normalize_dataset(ds, source_catalog_stem=source_stem, idx=i, concepts_map=concepts_map)
+                normalize_dataset(
+                    ds=ds,
+                    source_catalog_stem=source_stem,
+                    idx=i,
+                    series_id=series_id,
+                    concepts_map=concepts_map,
+                )
             )
 
     container = {
@@ -167,12 +224,17 @@ def main() -> None:
             "identifier": "sdcdc:USER-CATALOG",
             "title": "User Catalog",
             "description": "Aggregated datasets from data-catalog/user-catalogs/",
+            "dataset": all_datasets,
         },
         "datasets": all_datasets,
+        "series": all_series,
     }
 
     if concepts_map:
-        container["concepts"] = sorted(concepts_map.values(), key=lambda x: x.get("prefLabel", "").lower())
+        container["concepts"] = sorted(
+            concepts_map.values(),
+            key=lambda x: x.get("prefLabel", "").lower()
+        )
 
     out = Path("data-catalog/data-catalog.yaml")
     out.parent.mkdir(parents=True, exist_ok=True)
