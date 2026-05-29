@@ -119,16 +119,14 @@ jobs:
       - name: Generate fallback homepage
         run: |
           set -euo pipefail
-          python - <<'PY'
+          uv run python - <<'PY'
           from pathlib import Path
           import html
-          import re
           import yaml
 
           docs = Path("docs")
           docs.mkdir(parents=True, exist_ok=True)
 
-          # Read source-of-truth user catalogs
           catalog_files = sorted(Path("data-catalog/user-catalogs").glob("*.yaml")) + sorted(
               Path("data-catalog/user-catalogs").glob("*.yml")
           )
@@ -143,14 +141,11 @@ jobs:
               catalog_title = cat.get("title") or cat.get("name") or yf.stem
               catalog_description = cat.get("description") or "Generated catalog page"
 
-              # Find the generated HTML page corresponding to this catalog
-              # Typical filename pattern: data-catalogA-SF0JMV.html
               html_candidates = list(docs.rglob(f"*{catalog_id}*.html"))
               html_candidates = [p for p in html_candidates if p.name.lower() != "index.html"]
 
               href = "#"
               if html_candidates:
-                  # Prefer the shortest path match
                   html_candidates = sorted(html_candidates, key=lambda p: len(p.as_posix()))
                   href = html_candidates[0].relative_to(docs).as_posix()
 
