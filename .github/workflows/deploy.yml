@@ -47,56 +47,53 @@ jobs:
       - name: Install Python project dependencies
         run: uv sync --no-dev --no-install-project --locked
 
-      - name: Patch generator to skip empty theme wordcloud (indent-safe)
+      - name: Patch generator to skip empty theme wordcloud
         run: |
           set -euo pipefail
           uv run python - <<'PY'
           from pathlib import Path
           import re
 
-          # Locate installed dependency inside uv venv
           candidates = list(Path(".venv").glob("lib/python*/site-packages/simple_data_catalog_generator/analysis_functions.py"))
           if not candidates:
-            candidates = list(Path(".venv").rglob("simple_data_catalog_generator/analysis_functions.py"))
+              candidates = list(Path(".venv").rglob("simple_data_catalog_generator/analysis_functions.py"))
+
           if not candidates:
-            raise SystemExit("ERROR: simple_data_catalog_generator/analysis_functions.py not found under .venv")
+              raise SystemExit("ERROR: simple_data_catalog_generator/analysis_functions.py not found under .venv")
 
           target = candidates[0]
           txt = target.read_text(encoding="utf-8")
 
           marker = "PATCH_EMPTY_WORDCLOUD_GUARD"
 
-          # Remove any previous patch blocks (good or bad indentation)
+          # Remove any previous patch block
           txt = re.sub(
-            r"(?m)^[ \t]*#\s*" + re.escape(marker) + r"\s*\n"
-            r"^[ \t]*if\s+not\s+d\s*:\s*\n"
-            r"^[ \t]*return\s*\n",
-            "",
-            txt,
+              r"(?m)^[ \t]*#\s*" + re.escape(marker) + r"\s*\n"
+              r"^[ \t]*if\s+not\s+d\s*:\s*\n"
+              r"^[ \t]*return\s*\n",
+              "",
+              txt,
           )
 
           needle = "wordcloud.generate_from_frequencies(frequencies=d)"
           pos = txt.find(needle)
           if pos == -1:
-            raise SystemExit(f"ERROR: expected line not found in {target}: {needle}")
+              raise SystemExit(f"ERROR: expected line not found in {target}: {needle}")
 
-          # Determine indentation of the needle line
           line_start = txt.rfind("\n", 0, pos) + 1
           line_end = txt.find("\n", pos)
           if line_end == -1:
-            line_end = len(txt)
+              line_end = len(txt)
           needle_line = txt[line_start:line_end]
           indent = re.match(r"^([ \t]*)", needle_line).group(1)
 
           insert = (
-            f"{indent}# {marker}\n"
-            f"{indent}if not d:\n"
-            f"{indent}    return\n"
+              f"{indent}# {marker}\n"
+              f"{indent}if not d:\n"
+              f"{indent}    return\n"
           )
 
-          # Insert guard immediately before the needle line
           txt = txt[:line_start] + insert + txt[line_start:]
-
           target.write_text(txt, encoding="utf-8")
           print(f"OK: patched {target}")
           PY
@@ -120,10 +117,94 @@ jobs:
       - name: Generate Site
         run: npx antora antora-playbook.yml
 
+      - name: Generate fallback homepage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import html
+          import re
+
+          docs = Path("docs")
+          docs.mkdir(parents=True, exist_ok=True)
+
+          # Find all generated HTML pages under docs, excluding index and UI assets
+          pages = []
+          for p in docs.rglob("*.html"):
+              if p.name.lower() == "index.html":
+                  continue
+              parts = {part.lower() for part in p.parts}
+              if "_" in parts:
+                  continue
+              pages.append(p)
+
+          pages = sorted(pages)
+
+          items = []
+          for p in pages:
+              rel = p.relative_to(docs).as_posix()
+
+              # Default label from filename
+              label = p.stem
+
+              # Prefer the <title> text if present
+              text = p.read_text(encoding="utf-8", errors="ignore")
+              m = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+              if m:
+                  title = re.sub(r"\s+", " ", m.group(1)).strip()
+                  if "::" in title:
+                      title = title.split("::")[0].strip()
+                  if title:
+                      label = title
+
+              items.append(f'<li><a href="{html.escape(rel)}">{html.escape(label)}</a></li>')
+
+          if not items:
+              items_html = "<li>No catalog pages were generated.</li>"
+          else:
+              items_html = "\n".join(items)
+
+          index_html = f"""<!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width,initial-scale=1">
+              <title>Data Catalog</title>
+              <style>
+                body {{
+                  font-family: Arial, sans-serif;
+                  margin: 2rem;
+                  line-height: 1.5;
+                }}
+                h1 {{
+                  margin-bottom: 0.5rem;
+                }}
+                ul {{
+                  margin-top: 1rem;
+                }}
+                li {{
+                  margin: 0.4rem 0;
+                }}
+              </style>
+            </head>
+            <body>
+              <h1>Data Catalog</h1>
+              <p>Available catalog pages:</p>
+              <ul>
+                {items_html}
+              </ul>
+            </body>
+          </html>
+          """
+
+          (docs / "index.html").write_text(index_html, encoding="utf-8")
+          print("OK: wrote docs/index.html")
+          PY
+
       - name: Upload Artifacts
         uses: actions/upload-pages-artifact@v4
         with:
-          path: docs/data-catalog/
+          path: docs/
 
       - name: Deploy to GitHub Pages
         id: deployment
