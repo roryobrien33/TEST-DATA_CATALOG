@@ -128,7 +128,7 @@ jobs:
           docs = Path("docs")
           docs.mkdir(parents=True, exist_ok=True)
 
-          # Find all generated HTML pages under docs, excluding index and UI assets
+          # Find generated HTML pages under docs, excluding index and UI assets
           pages = []
           for p in docs.rglob("*.html"):
               if p.name.lower() == "index.html":
@@ -140,29 +140,60 @@ jobs:
 
           pages = sorted(pages)
 
-          items = []
+          cards = []
           for p in pages:
               rel = p.relative_to(docs).as_posix()
-
-              # Default label from filename
               label = p.stem
+              description = "Generated catalog page"
 
-              # Prefer the <title> text if present
               text = p.read_text(encoding="utf-8", errors="ignore")
-              m = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
-              if m:
-                  title = re.sub(r"\s+", " ", m.group(1)).strip()
+
+              # Use <title> text if present
+              m_title = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+              if m_title:
+                  title = re.sub(r"\s+", " ", m_title.group(1)).strip()
                   if "::" in title:
                       title = title.split("::")[0].strip()
                   if title:
                       label = title
 
-              items.append(f'<li><a href="{html.escape(rel)}">{html.escape(label)}</a></li>')
+              # Try to extract first paragraph under Description section
+              m_desc = re.search(
+                  r'<h2[^>]*id="_description"[^>]*>.*?</h2>.*?<p>(.*?)</p>',
+                  text,
+                  re.IGNORECASE | re.DOTALL,
+              )
+              if m_desc:
+                  raw = re.sub(r"<.*?>", "", m_desc.group(1))
+                  raw = re.sub(r"\s+", " ", raw).strip()
+                  if raw:
+                      description = raw
 
-          if not items:
-              items_html = "<li>No catalog pages were generated.</li>"
+              cards.append(
+                  f"""
+                  <article class="catalog-card">
+                    <div class="catalog-card-body">
+                      <h3 class="catalog-card-title"><a href="{html.escape(rel)}">{html.escape(label)}</a></h3>
+                      <p class="catalog-card-description">{html.escape(description)}</p>
+                    </div>
+                    <div class="catalog-card-footer">
+                      <a class="catalog-link" href="{html.escape(rel)}">Open catalog →</a>
+                    </div>
+                  </article>
+                  """
+              )
+
+          if not cards:
+              cards_html = """
+                <article class="catalog-card">
+                  <div class="catalog-card-body">
+                    <h3 class="catalog-card-title">No catalog pages found</h3>
+                    <p class="catalog-card-description">No generated catalog pages were found in this build.</p>
+                  </div>
+                </article>
+              """
           else:
-              items_html = "\n".join(items)
+              cards_html = "\n".join(cards)
 
           index_html = f"""<!DOCTYPE html>
           <html lang="en">
@@ -170,29 +201,125 @@ jobs:
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width,initial-scale=1">
               <title>Data Catalog</title>
+              <link rel="stylesheet" href="./_/css/site.css">
+              <link rel="stylesheet" href="./_/css/extra.css">
               <style>
                 body {{
-                  font-family: Arial, sans-serif;
-                  margin: 2rem;
-                  line-height: 1.5;
+                  background: #f7f7f8;
                 }}
-                h1 {{
-                  margin-bottom: 0.5rem;
+                .landing-main {{
+                  max-width: 1200px;
+                  margin: 0 auto;
+                  padding: 2rem 1.5rem 3rem;
                 }}
-                ul {{
-                  margin-top: 1rem;
+                .landing-hero {{
+                  margin-bottom: 2rem;
                 }}
-                li {{
-                  margin: 0.4rem 0;
+                .landing-hero h1 {{
+                  margin: 0 0 0.5rem;
+                  font-size: 2.5rem;
+                  line-height: 1.1;
+                }}
+                .landing-hero p {{
+                  margin: 0;
+                  color: #4a4a4a;
+                  font-size: 1.05rem;
+                }}
+                .landing-section-title {{
+                  margin: 2rem 0 1rem;
+                  font-size: 1.5rem;
+                }}
+                .catalog-grid {{
+                  display: grid;
+                  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                  gap: 1.25rem;
+                }}
+                .catalog-card {{
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: space-between;
+                  min-height: 220px;
+                  border: 1px solid #d6d9dc;
+                  border-radius: 8px;
+                  background: #fff;
+                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                }}
+                .catalog-card-body {{
+                  padding: 1.25rem 1.25rem 0.75rem;
+                }}
+                .catalog-card-footer {{
+                  padding: 0 1.25rem 1.25rem;
+                }}
+                .catalog-card-title {{
+                  margin: 0 0 0.75rem;
+                  font-size: 1.25rem;
+                  line-height: 1.25;
+                }}
+                .catalog-card-title a {{
+                  color: #003a5d;
+                  text-decoration: none;
+                }}
+                .catalog-card-title a:hover {{
+                  text-decoration: underline;
+                }}
+                .catalog-card-description {{
+                  margin: 0;
+                  color: #5d5d5d;
+                }}
+                .catalog-link {{
+                  display: inline-block;
+                  font-weight: 600;
+                  text-decoration: none;
+                }}
+                .catalog-link:hover {{
+                  text-decoration: underline;
+                }}
+                .hero-panel {{
+                  border: 1px solid #d6d9dc;
+                  border-radius: 8px;
+                  background: #fff;
+                  padding: 1.25rem 1.5rem;
                 }}
               </style>
             </head>
-            <body>
-              <h1>Data Catalog</h1>
-              <p>Available catalog pages:</p>
-              <ul>
-                {items_html}
-              </ul>
+            <body class="article">
+              <header class="header">
+                <nav class="navbar">
+                  <div class="navbar-brand">
+                    <a class="navbar-item" href="./" style="display: flex; align-items: center; gap: 0.5rem;">
+                      <img src="./_/img/logo.png" alt="Data Catalog Logo" style="height: 2rem; width: auto;">
+                      <span>Data Catalog</span>
+                    </a>
+                    <button class="navbar-burger" data-target="topbar-nav">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </button>
+                  </div>
+                  <div id="topbar-nav" class="navbar-menu">
+                    <div class="navbar-end">
+                      <a class="navbar-item" href="./">Home</a>
+                      <a class="navbar-item" href="https://github.com/roryobrien33/TEST-DATA_CATALOG">GitHub</a>
+                    </div>
+                  </div>
+                </nav>
+              </header>
+
+              <main class="landing-main">
+                <section class="landing-hero hero-panel">
+                  <h1>Data Catalog</h1>
+                  <p>Browse the generated catalog pages for this deployment.</p>
+                </section>
+
+                <section>
+                  <h2 class="landing-section-title">Available Catalogs</h2>
+                  <div class="catalog-grid">
+                    {cards_html}
+                  </div>
+                </section>
+              </main>
+
+              <script id="site-script" src="./_/js/site.js" data-ui-root-path="./_"></script>
             </body>
           </html>
           """
@@ -209,3 +336,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+``
