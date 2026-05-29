@@ -66,7 +66,6 @@ jobs:
 
           marker = "PATCH_EMPTY_WORDCLOUD_GUARD"
 
-          # Remove any previous patch block
           txt = re.sub(
               r"(?m)^[ \t]*#\s*" + re.escape(marker) + r"\s*\n"
               r"^[ \t]*if\s+not\s+d\s*:\s*\n"
@@ -135,40 +134,37 @@ jobs:
               if "_" in {part.lower() for part in p.parts}:
                   continue
 
-              # Skip merged User Catalog page by filename
-              if "USER-CATALOG" in p.stem.upper():
+              text = p.read_text(encoding="utf-8", errors="ignore")
+
+              # Extract title
+              m_title = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+              if not m_title:
                   continue
 
-              text = p.read_text(encoding="utf-8", errors="ignore")
+              title = re.sub(r"\s+", " ", m_title.group(1)).strip()
+              if "::" in title:
+                  title = title.split("::")[0].strip()
 
-              # Skip merged User Catalog page by title
-              m_title = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
-              if m_title:
-                  title = re.sub(r"\s+", " ", m_title.group(1)).strip()
-                  if "::" in title:
-                      title = title.split("::")[0].strip()
-                  if title.strip().lower() == "user catalog":
-                      continue
+              # Skip merged User Catalog page
+              if title.strip().lower() == "user catalog":
+                  continue
 
-              pages.append(p)
+              # Keep only real catalog pages:
+              # Catalog pages have a Description heading and Overview heading.
+              has_description = re.search(r'<h2[^>]*id="_description"[^>]*>', text, re.IGNORECASE)
+              has_overview = re.search(r'<h2[^>]*id="_overview"[^>]*>', text, re.IGNORECASE)
 
-          pages = sorted(pages)
+              if not (has_description and has_overview):
+                  continue
+
+              pages.append((p, title, text))
+
+          pages = sorted(pages, key=lambda x: x[1].lower())
 
           cards = []
-          for p in pages:
+          for p, label, text in pages:
               rel = p.relative_to(docs).as_posix()
-              label = p.stem
               description = "Generated catalog page"
-
-              text = p.read_text(encoding="utf-8", errors="ignore")
-
-              m_title = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
-              if m_title:
-                  title = re.sub(r"\s+", " ", m_title.group(1)).strip()
-                  if "::" in title:
-                      title = title.split("::")[0].strip()
-                  if title:
-                      label = title
 
               m_desc = re.search(
                   r'<h2[^>]*id="_description"[^>]*>.*?</h2>.*?<p>(.*?)</p>',
