@@ -66,6 +66,7 @@ jobs:
 
           marker = "PATCH_EMPTY_WORDCLOUD_GUARD"
 
+          # Remove any previous patch block
           txt = re.sub(
               r"(?m)^[ \t]*#\s*" + re.escape(marker) + r"\s*\n"
               r"^[ \t]*if\s+not\s+d\s*:\s*\n"
@@ -134,9 +135,13 @@ jobs:
               if "_" in {part.lower() for part in p.parts}:
                   continue
 
+              # Skip merged User Catalog page by filename
+              if "USER-CATALOG" in p.stem.upper():
+                  continue
+
               text = p.read_text(encoding="utf-8", errors="ignore")
 
-              # Skip the merged "User Catalog" page
+              # Skip merged User Catalog page by title
               m_title = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
               if m_title:
                   title = re.sub(r"\s+", " ", m_title.group(1)).strip()
@@ -177,32 +182,30 @@ jobs:
                       description = raw
 
               cards.append(
-                  f'''
-                  <article class="catalog-card">
-                    <div class="catalog-card-body">
-                      <h3 class="catalog-card-title"><a href="{html.escape(rel)}">{html.escape(label)}</a></h3>
-                      <p class="catalog-card-description">{html.escape(description)}</p>
-                    </div>
-                    <div class="catalog-card-footer">
-                      <a class="catalog-link" href="{html.escape(rel)}">Open catalog →</a>
-                    </div>
-                  </article>
-                  '''
+                  f'<article class="catalog-card">'
+                  f'<div class="catalog-card-body">'
+                  f'<h3 class="catalog-card-title"><a href="{html.escape(rel)}">{html.escape(label)}</a></h3>'
+                  f'<p class="catalog-card-description">{html.escape(description)}</p>'
+                  f'</div>'
+                  f'<div class="catalog-card-footer">'
+                  f'<a class="catalog-link" href="{html.escape(rel)}">Open catalog →</a>'
+                  f'</div>'
+                  f'</article>'
               )
 
           if not cards:
-              cards_html = '''
-              <article class="catalog-card">
-                <div class="catalog-card-body">
-                  <h3 class="catalog-card-title">No catalog pages found</h3>
-                  <p class="catalog-card-description">No generated catalog pages were found in this build.</p>
-                </div>
-              </article>
-              '''
+              cards_html = (
+                  '<article class="catalog-card">'
+                  '<div class="catalog-card-body">'
+                  '<h3 class="catalog-card-title">No catalog pages found</h3>'
+                  '<p class="catalog-card-description">No generated catalog pages were found in this build.</p>'
+                  '</div>'
+                  '</article>'
+              )
           else:
               cards_html = "\n".join(cards)
 
-          index_html = f'''<!DOCTYPE html>
+          index_html = f"""<!DOCTYPE html>
           <html lang="en">
             <head>
               <meta charset="utf-8">
@@ -326,7 +329,7 @@ jobs:
               </main>
             </body>
           </html>
-          '''
+          """
 
           (docs / "index.html").write_text(index_html, encoding="utf-8")
           print("OK: wrote docs/index.html")
