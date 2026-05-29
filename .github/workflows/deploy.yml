@@ -108,3 +108,211 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v5
         with:
+          node-version: "18"
+
+      - name: Install Antora with the Antora Lunr Extension
+        run: npm i antora @antora/lunr-extension @sntke/antora-mermaid-extension
+
+      - name: Generate Site
+        run: npx antora antora-playbook.yml
+
+      - name: Generate fallback homepage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import html
+          import re
+          import yaml
+
+          docs = Path("docs")
+          docs.mkdir(parents=True, exist_ok=True)
+
+          # Read source-of-truth user catalogs
+          catalog_files = sorted(Path("data-catalog/user-catalogs").glob("*.yaml")) + sorted(
+              Path("data-catalog/user-catalogs").glob("*.yml")
+          )
+
+          cards = []
+
+          for yf in catalog_files:
+              data = yaml.safe_load(yf.read_text(encoding="utf-8")) or {}
+              cat = data.get("catalog", {}) or {}
+
+              catalog_id = cat.get("id") or cat.get("identifier") or yf.stem
+              catalog_title = cat.get("title") or cat.get("name") or yf.stem
+              catalog_description = cat.get("description") or "Generated catalog page"
+
+              # Find the generated HTML page corresponding to this catalog
+              # Typical filename pattern: data-catalogA-SF0JMV.html
+              html_candidates = list(docs.rglob(f"*{catalog_id}*.html"))
+              html_candidates = [p for p in html_candidates if p.name.lower() != "index.html"]
+
+              href = "#"
+              if html_candidates:
+                  # Prefer the shortest path match
+                  html_candidates = sorted(html_candidates, key=lambda p: len(p.as_posix()))
+                  href = html_candidates[0].relative_to(docs).as_posix()
+
+              cards.append(
+                  f'<article class="catalog-card">'
+                  f'<div class="catalog-card-body">'
+                  f'<h3 class="catalog-card-title"><a href="{html.escape(href)}">{html.escape(str(catalog_title))}</a></h3>'
+                  f'<p class="catalog-card-description">{html.escape(str(catalog_description))}</p>'
+                  f'</div>'
+                  f'<div class="catalog-card-footer">'
+                  f'<a class="catalog-link" href="{html.escape(href)}">Open catalog →</a>'
+                  f'</div>'
+                  f'</article>'
+              )
+
+          if not cards:
+              cards_html = (
+                  '<article class="catalog-card">'
+                  '<div class="catalog-card-body">'
+                  '<h3 class="catalog-card-title">No catalog pages found</h3>'
+                  '<p class="catalog-card-description">No generated catalog pages were found in this build.</p>'
+                  '</div>'
+                  '</article>'
+              )
+          else:
+              cards_html = "\n".join(cards)
+
+          index_html = f"""<!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width,initial-scale=1">
+              <title>Data Catalog</title>
+              <link rel="stylesheet" href="./_/css/site.css">
+              <link rel="stylesheet" href="./_/css/extra.css">
+              <style>
+                body {{
+                  background: #f7f7f8;
+                }}
+                .landing-main {{
+                  max-width: 1200px;
+                  margin: 0 auto;
+                  padding: 2rem 1.5rem 3rem;
+                }}
+                .landing-hero {{
+                  margin-bottom: 2rem;
+                }}
+                .landing-hero h1 {{
+                  margin: 0 0 0.5rem;
+                  font-size: 2.5rem;
+                  line-height: 1.1;
+                }}
+                .landing-hero p {{
+                  margin: 0;
+                  color: #4a4a4a;
+                  font-size: 1.05rem;
+                }}
+                .landing-section-title {{
+                  margin: 2rem 0 1rem;
+                  font-size: 1.5rem;
+                }}
+                .catalog-grid {{
+                  display: grid;
+                  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                  gap: 1.25rem;
+                }}
+                .catalog-card {{
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: space-between;
+                  min-height: 220px;
+                  border: 1px solid #d6d9dc;
+                  border-radius: 8px;
+                  background: #fff;
+                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                }}
+                .catalog-card-body {{
+                  padding: 1.25rem 1.25rem 0.75rem;
+                }}
+                .catalog-card-footer {{
+                  padding: 0 1.25rem 1.25rem;
+                }}
+                .catalog-card-title {{
+                  margin: 0 0 0.75rem;
+                  font-size: 1.25rem;
+                  line-height: 1.25;
+                }}
+                .catalog-card-title a {{
+                  color: #003a5d;
+                  text-decoration: none;
+                }}
+                .catalog-card-title a:hover {{
+                  text-decoration: underline;
+                }}
+                .catalog-card-description {{
+                  margin: 0;
+                  color: #5d5d5d;
+                }}
+                .catalog-link {{
+                  display: inline-block;
+                  font-weight: 600;
+                  text-decoration: none;
+                }}
+                .catalog-link:hover {{
+                  text-decoration: underline;
+                }}
+                .hero-panel {{
+                  border: 1px solid #d6d9dc;
+                  border-radius: 8px;
+                  background: #fff;
+                  padding: 1.25rem 1.5rem;
+                }}
+              </style>
+            </head>
+            <body class="article">
+              <header class="header">
+                <nav class="navbar">
+                  <div class="navbar-brand">
+                    <a class="navbar-item" href="./" style="display: flex; align-items: center; gap: 0.5rem;">
+                      <span>Data Catalog</span>
+                    </a>
+                    <button class="navbar-burger" data-target="topbar-nav">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </button>
+                  </div>
+                  <div id="topbar-nav" class="navbar-menu">
+                    <div class="navbar-end">
+                      <a class="navbar-item" href="./">Home</a>
+                      <a class="navbar-item" href="https://github.com/roryobrien33/TEST-DATA_CATALOG">GitHub</a>
+                    </div>
+                  </div>
+                </nav>
+              </header>
+
+              <main class="landing-main">
+                <section class="landing-hero hero-panel">
+                  <h1>Data Catalog</h1>
+                  <p>Browse the generated catalog pages for this deployment.</p>
+                </section>
+
+                <section>
+                  <h2 class="landing-section-title">Available Catalogs</h2>
+                  <div class="catalog-grid">
+                    {cards_html}
+                  </div>
+                </section>
+              </main>
+            </body>
+          </html>
+          """
+
+          (docs / "index.html").write_text(index_html, encoding="utf-8")
+          print("OK: wrote docs/index.html")
+          PY
+
+      - name: Upload Artifacts
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
