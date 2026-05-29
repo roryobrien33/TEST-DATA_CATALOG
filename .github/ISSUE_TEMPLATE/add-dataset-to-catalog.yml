@@ -1,0 +1,78 @@
+name: Add dataset to existing catalog
+description: Add a new dataset to an existing catalog using the catalog ID.
+title: "[Add Dataset] "
+labels: ["catalog-add-dataset", "catalog-intake"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to add a new dataset to an existing catalog.
+
+        You must provide the **Catalog ID** of the existing catalog.
+        The workflow will validate the dataset use case against the allowed use cases defined in that catalog.
+
+  - type: input
+    id: catalog_id_existing
+    attributes:
+      label: Catalog ID (existing)
+      description: "Required. Use the exact Catalog ID generated when the catalog was created."
+      placeholder: "EXAMPLE-CATALOG-ABC123"
+    validations:
+      required: true
+
+  - type: input
+    id: dataset_title
+    attributes:
+      label: Dataset title
+      description: "Required. Human-readable dataset title."
+      placeholder: "Overload simulation - GRID01"
+    validations:
+      required: true
+
+  - type: textarea
+    id: dataset_description
+    attributes:
+      label: Dataset description
+      description: "Required. Briefly describe what the dataset contains and how it can be used."
+      placeholder: "This dataset contains simulation outputs for..."
+    validations:
+      required: true
+
+  - type: input
+    id: dataset_use_case
+    attributes:
+      label: Dataset use case
+      description: "Required. Must match one of the allowed use cases defined in the target catalog."
+      placeholder: "fault-analysis"
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Geographical Location (high-level)
+      description: "Required. Broad location/context only."
+      placeholder: "Munich, Germany"
+    validations:
+      required: true
+
+  - type: input
+    id: concepts
+    attributes:
+      label: Concepts / tags (optional)
+      description: "Optional. Comma-separated values."
+      placeholder: "overload, distribution-grid, csv"
+    validations:
+      required: false
+
+  - type: textarea
+    id: distributions
+    attributes:
+      label: Distribution links (optional)
+      description: "Optional. One per line."
+      placeholder: |
+        https://example.com/data.csv
+        https://example.com/readme
+    validations:
+      required: false
