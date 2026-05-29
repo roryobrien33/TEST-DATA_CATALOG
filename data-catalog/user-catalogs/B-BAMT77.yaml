@@ -1,0 +1,10 @@
+catalog:
+  id: B-BAMT77
+  title: B
+  description: B
+  version: 1
+  use_cases:
+  - b-b
+  owner: B
+  contact: B
+datasets: []
