@@ -1,1 +1,91 @@
+name: Edit existing dataset
+description: Edit an existing dataset inside an existing catalog using the catalog ID and dataset identifier.
+title: "[Edit Dataset] "
+labels: ["catalog-edit-dataset", "catalog-intake"]
 
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to edit an existing dataset inside an existing catalog.
+
+        You must provide:
+        - the exact **Catalog ID**
+        - the exact **Dataset identifier**
+
+        Only fill in the fields you want to update.
+        Leave any field blank if you do not want to change it.
+
+  - type: input
+    id: catalog_id_existing
+    attributes:
+      label: Catalog ID (existing)
+      description: "Required. Use the exact Catalog ID of the existing catalog."
+      placeholder: "A-SF0JMV"
+    validations:
+      required: true
+
+  - type: input
+    id: dataset_identifier
+    attributes:
+      label: Dataset identifier
+      description: "Required. Use the exact identifier of the dataset you want to edit."
+      placeholder: "sdcdc:dataset-001"
+    validations:
+      required: true
+
+  - type: input
+    id: dataset_title
+    attributes:
+      label: Dataset title (optional)
+      description: "Optional. Enter a new title only if you want to update it."
+      placeholder: "Updated dataset title"
+    validations:
+      required: false
+
+  - type: textarea
+    id: dataset_description
+    attributes:
+      label: Dataset description (optional)
+      description: "Optional. Enter a new description only if you want to update it."
+      placeholder: "Updated dataset description..."
+    validations:
+      required: false
+
+  - type: input
+    id: dataset_use_case
+    attributes:
+      label: Dataset use case (optional)
+      description: "Optional. Must match one of the allowed use cases defined in the target catalog."
+      placeholder: "fault-analysis"
+    validations:
+      required: false
+
+  - type: input
+    id: location
+    attributes:
+      label: Geographical Location (high-level) (optional)
+      description: "Optional. Broad location/context only."
+      placeholder: "Munich, Germany"
+    validations:
+      required: false
+
+  - type: input
+    id: concepts
+    attributes:
+      label: Concepts / tags (optional)
+      description: "Optional. Replace concepts/tags with a new comma-separated list."
+      placeholder: "overload, distribution-grid, csv"
+    validations:
+      required: false
+
+  - type: textarea
+    id: distributions
+    attributes:
+      label: Distribution links (optional)
+      description: "Optional. Replace distributions with a new list, one per line."
+      placeholder: |
+        https://example.com/data.csv
+        https://example.com/readme
+    validations:
+      required: false
