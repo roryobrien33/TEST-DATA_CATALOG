@@ -9,7 +9,7 @@ catalog:
   contact: A
 datasets:
 - id: test
-  title: Tester
+  title: New_tester
   description: tester dataset
   use_case: a-a
   location: Munich, Germany
