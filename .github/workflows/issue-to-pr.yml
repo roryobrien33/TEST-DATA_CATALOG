@@ -182,4 +182,43 @@ jobs:
             core.setOutput("dataset_use_case_B", dataset_use_case_B);
             core.setOutput("location_B", location_B);
             core.setOutput("concepts_B", concepts_B);
-            core.setOutput("distributions_B", distributions
+            core.setOutput("distributions_B", distributions_B);
+
+            core.setOutput("catalog_id_existing_C", catalog_id_existing_C);
+            core.setOutput("dataset_identifier_C", dataset_identifier_C);
+            core.setOutput("dataset_title_C", dataset_title_C);
+            core.setOutput("dataset_description_C", dataset_description_C);
+            core.setOutput("dataset_use_case_C", dataset_use_case_C);
+            core.setOutput("location_C", location_C);
+            core.setOutput("concepts_C", concepts_C);
+            core.setOutput("distributions_C", distributions_C);
+
+      - name: Comment and stop on validation errors
+        if: ${{ fromJSON(steps.parse.outputs.errors)[0] != null }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const errors = JSON.parse(`${{ steps.parse.outputs.errors }}`);
+            const msg =
+              "❌ **Catalog intake validation failed**\n\n" +
+              errors.map(e => `- ${e}`).join("\n") +
+              "\n\nPlease edit the issue to fix these fields, then the workflow will re-run.";
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: msg
+            });
+            core.setFailed("Validation failed");
+
+      - name: Comment generated Catalog ID
+        if: ${{ steps.parse.outputs.is_create_catalog == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: `✅ Generated Catalog ID: \`${{ steps.parse.outputs.generated_catalog_id }}\``
+            });
