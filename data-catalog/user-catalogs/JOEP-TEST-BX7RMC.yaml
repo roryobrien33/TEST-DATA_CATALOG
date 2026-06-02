@@ -1,0 +1,8 @@
+catalog:
+  id: JOEP-TEST-BX7RMC
+  title: JOEP TEST
+  description: This is a test, happy days!
+  version: 1
+  use_cases:
+  - fault-analysis
+datasets: []
