@@ -102,11 +102,15 @@ def normalize_dataset(
     if not raw_id:
         raw_id = f"dataset-{source_catalog_stem}-{idx:04d}"
 
-    out = {"identifier": ensure_curie(str(raw_id))}
+    dataset_id = ensure_curie(str(raw_id))
+    out = {"identifier": dataset_id}
 
     title = first_present(ds, ["title", "name"], None)
     if title:
-        out["title"] = str(title)
+        # Make dataset ID visible in the rendered page
+        out["title"] = f"{str(title)} [ID: {dataset_id}]"
+    else:
+        out["title"] = f"[ID: {dataset_id}]"
 
     desc = first_present(ds, ["description"], None)
     if desc:
@@ -218,8 +222,6 @@ def main() -> None:
                 )
             )
 
-    # IMPORTANT:
-    # dataCatalog.dataset must be a list of REFERENCES (identifiers), not inline dataset objects
     dataset_refs = [ds["identifier"] for ds in all_datasets]
 
     container = {
@@ -253,3 +255,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+``
