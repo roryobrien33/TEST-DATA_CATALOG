@@ -222,3 +222,253 @@ jobs:
               issue_number: context.payload.issue.number,
               body: `✅ Generated Catalog ID: \`${{ steps.parse.outputs.generated_catalog_id }}\``
             });
+
+      - name: Create catalog YAML
+        if: ${{ steps.parse.outputs.is_create_catalog == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data-catalog/user-catalogs
+
+          python - <<'PY'
+          import os
+          import re
+          import pathlib
+          import yaml
+
+          catalog_id = os.environ["CATALOG_ID"]
+          catalog_name = os.environ["CATALOG_NAME"]
+          catalog_description = os.environ["CATALOG_DESCRIPTION"]
+          raw_use_cases = os.environ["CATALOG_USE_CASES"]
+          owner = os.environ.get("CATALOG_OWNER", "").strip()
+          contact = os.environ.get("CATALOG_CONTACT", "").strip()
+
+          def norm_use_case(s: str) -> str:
+              s = s.strip().lower()
+              s = re.sub(r"[\s_]+", "-", s)
+              s = re.sub(r"[^a-z0-9-]", "-", s)
+              s = re.sub(r"-+", "-", s).strip("-")
+              return s
+
+          use_cases = [norm_use_case(x) for x in raw_use_cases.split(",")]
+          use_cases = [x for x in use_cases if x]
+
+          p = pathlib.Path(f"data-catalog/user-catalogs/{catalog_id}.yaml")
+          p.parent.mkdir(parents=True, exist_ok=True)
+
+          if p.exists():
+              raise SystemExit(f"Catalog file already exists: {p}")
+
+          doc = {
+              "catalog": {
+                  "id": catalog_id,
+                  "title": catalog_name,
+                  "description": catalog_description,
+                  "version": 1,
+                  "use_cases": use_cases,
+              },
+              "datasets": []
+          }
+
+          if owner:
+              doc["catalog"]["owner"] = owner
+          if contact:
+              doc["catalog"]["contact"] = contact
+
+          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
+          print(f"Wrote: {p}")
+          PY
+        env:
+          CATALOG_ID: ${{ steps.parse.outputs.generated_catalog_id }}
+          CATALOG_NAME: ${{ steps.parse.outputs.catalog_name_A }}
+          CATALOG_DESCRIPTION: ${{ steps.parse.outputs.catalog_description_A }}
+          CATALOG_USE_CASES: ${{ steps.parse.outputs.catalog_use_cases_A }}
+          CATALOG_OWNER: ${{ steps.parse.outputs.catalog_owner_A }}
+          CATALOG_CONTACT: ${{ steps.parse.outputs.catalog_contact_A }}
+
+      - name: Add dataset to catalog YAML
+        if: ${{ steps.parse.outputs.is_add_dataset == 'true' }}
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import os
+          import re
+          import pathlib
+          import yaml
+
+          catalog_id = os.environ["CATALOG_ID_EXISTING"].strip()
+          dataset_identifier = os.environ["DATASET_IDENTIFIER"].strip()
+          dataset_title = os.environ["DATASET_TITLE"].strip()
+          dataset_description = os.environ["DATASET_DESCRIPTION"].strip()
+          dataset_use_case_raw = os.environ["DATASET_USE_CASE"].strip()
+          location = os.environ["LOCATION"].strip()
+          concepts_raw = os.environ.get("CONCEPTS", "").strip()
+          distributions_raw = os.environ.get("DISTRIBUTIONS", "").strip()
+
+          p = pathlib.Path(f"data-catalog/user-catalogs/{catalog_id}.yaml")
+          if not p.exists():
+              raise SystemExit(f"Catalog not found: {p}")
+
+          doc = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+          catalog = doc.get("catalog", {}) or {}
+          datasets = doc.get("datasets", [])
+          if datasets is None:
+              datasets = []
+          if not isinstance(datasets, list):
+              raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
+
+          def norm_use_case(s: str) -> str:
+              s = s.strip().lower()
+              s = re.sub(r"[\s_]+", "-", s)
+              s = re.sub(r"[^a-z0-9-]", "-", s)
+              s = re.sub(r"-+", "-", s).strip("-")
+              return s
+
+          dataset_use_case = norm_use_case(dataset_use_case_raw)
+          allowed = catalog.get("use_cases", []) or []
+          if dataset_use_case not in allowed:
+              raise SystemExit(
+                  f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
+                  f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
+              )
+
+          for ds in datasets:
+              ds_id = ds.get("id") or ds.get("identifier")
+              if ds_id == dataset_identifier:
+                  raise SystemExit(f"Dataset identifier already exists in catalog: {dataset_identifier}")
+
+          concepts = [x.strip() for x in concepts_raw.split(",") if x.strip()]
+          distributions = [x.strip() for x in distributions_raw.splitlines() if x.strip()]
+
+          new_ds = {
+              "id": dataset_identifier,
+              "title": dataset_title,
+              "description": dataset_description,
+              "use_case": dataset_use_case,
+              "location": location,
+          }
+
+          if concepts:
+              new_ds["concepts"] = concepts
+          if distributions:
+              new_ds["distributions"] = distributions
+
+          datasets.append(new_ds)
+          doc["datasets"] = datasets
+
+          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
+          print(f"Updated: {p}")
+          PY
+        env:
+          CATALOG_ID_EXISTING: ${{ steps.parse.outputs.catalog_id_existing_B }}
+          DATASET_IDENTIFIER: ${{ steps.parse.outputs.dataset_identifier_B }}
+          DATASET_TITLE: ${{ steps.parse.outputs.dataset_title_B }}
+          DATASET_DESCRIPTION: ${{ steps.parse.outputs.dataset_description_B }}
+          DATASET_USE_CASE: ${{ steps.parse.outputs.dataset_use_case_B }}
+          LOCATION: ${{ steps.parse.outputs.location_B }}
+          CONCEPTS: ${{ steps.parse.outputs.concepts_B }}
+          DISTRIBUTIONS: ${{ steps.parse.outputs.distributions_B }}
+
+      - name: Edit dataset in catalog YAML
+        if: ${{ steps.parse.outputs.is_edit_dataset == 'true' }}
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import os
+          import re
+          import pathlib
+          import yaml
+
+          catalog_id = os.environ["CATALOG_ID_EXISTING"].strip()
+          dataset_identifier = os.environ["DATASET_IDENTIFIER"].strip()
+          dataset_title = os.environ.get("DATASET_TITLE", "").strip()
+          dataset_description = os.environ.get("DATASET_DESCRIPTION", "").strip()
+          dataset_use_case_raw = os.environ.get("DATASET_USE_CASE", "").strip()
+          location = os.environ.get("LOCATION", "").strip()
+          concepts_raw = os.environ.get("CONCEPTS", "").strip()
+          distributions_raw = os.environ.get("DISTRIBUTIONS", "").strip()
+
+          p = pathlib.Path(f"data-catalog/user-catalogs/{catalog_id}.yaml")
+          if not p.exists():
+              raise SystemExit(f"Catalog not found: {p}")
+
+          doc = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+          catalog = doc.get("catalog", {}) or {}
+          datasets = doc.get("datasets", [])
+          if datasets is None:
+              datasets = []
+          if not isinstance(datasets, list):
+              raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
+
+          def norm_use_case(s: str) -> str:
+              s = s.strip().lower()
+              s = re.sub(r"[\s_]+", "-", s)
+              s = re.sub(r"[^a-z0-9-]", "-", s)
+              s = re.sub(r"-+", "-", s).strip("-")
+              return s
+
+          target = None
+          for ds in datasets:
+              ds_id = ds.get("id") or ds.get("identifier")
+              if ds_id == dataset_identifier:
+                  target = ds
+                  break
+
+          if target is None:
+              raise SystemExit(f"Dataset not found in catalog: {dataset_identifier}")
+
+          if dataset_title:
+              target["title"] = dataset_title
+
+          if dataset_description:
+              target["description"] = dataset_description
+
+          if dataset_use_case_raw:
+              dataset_use_case = norm_use_case(dataset_use_case_raw)
+              allowed = catalog.get("use_cases", []) or []
+              if dataset_use_case not in allowed:
+                  raise SystemExit(
+                      f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
+                      f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
+                  )
+              target["use_case"] = dataset_use_case
+
+          if location:
+              target["location"] = location
+
+          if concepts_raw:
+              target["concepts"] = [x.strip() for x in concepts_raw.split(",") if x.strip()]
+
+          if distributions_raw:
+              target["distributions"] = [x.strip() for x in distributions_raw.splitlines() if x.strip()]
+
+          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
+          print(f"Updated: {p}")
+          PY
+        env:
+          CATALOG_ID_EXISTING: ${{ steps.parse.outputs.catalog_id_existing_C }}
+          DATASET_IDENTIFIER: ${{ steps.parse.outputs.dataset_identifier_C }}
+          DATASET_TITLE: ${{ steps.parse.outputs.dataset_title_C }}
+          DATASET_DESCRIPTION: ${{ steps.parse.outputs.dataset_description_C }}
+          DATASET_USE_CASE: ${{ steps.parse.outputs.dataset_use_case_C }}
+          LOCATION: ${{ steps.parse.outputs.location_C }}
+          CONCEPTS: ${{ steps.parse.outputs.concepts_C }}
+          DISTRIBUTIONS: ${{ steps.parse.outputs.distributions_C }}
+
+      - name: Create Pull Request
+        if: ${{ success() }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          commit-message: "Catalog intake: issue #${{ github.event.issue.number }}"
+          branch: "catalog-intake/${{ github.event.issue.number }}"
+          title: "Catalog intake: issue #${{ github.event.issue.number }}"
+          body: |
+            This PR was automatically generated from issue #${{ github.event.issue.number }}.
+
+            - Labels: `${{ join(github.event.issue.labels.*.name, ', ') }}`
+            - Generated Catalog ID (if applicable): `${{ steps.parse.outputs.generated_catalog_id }}`
+
+            After merge to `main`, the Pages deployment workflow will rebuild and publish the static catalog site.
+          labels: "catalog-intake-pr"
