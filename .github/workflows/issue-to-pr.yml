@@ -297,7 +297,7 @@ jobs:
           import yaml
 
           catalog_id = os.environ["CATALOG_ID_EXISTING"].strip()
-          dataset_identifier = os.environ["DATASET_IDENTIFIER"].strip()
+          dataset_identifier_raw = os.environ["DATASET_IDENTIFIER"].strip()
           dataset_title = os.environ["DATASET_TITLE"].strip()
           dataset_description = os.environ["DATASET_DESCRIPTION"].strip()
           dataset_use_case_raw = os.environ["DATASET_USE_CASE"].strip()
@@ -324,7 +324,19 @@ jobs:
               s = re.sub(r"-+", "-", s).strip("-")
               return s
 
+          def ensure_curie(value: str, default_prefix: str = "sdcdc") -> str:
+              s = value.strip()
+              if not s:
+                  return s
+              if s.startswith("http://") or s.startswith("https://"):
+                  return s
+              if ":" in s:
+                  return s
+              return f"{default_prefix}:{s}"
+
+          dataset_identifier = ensure_curie(dataset_identifier_raw)
           dataset_use_case = norm_use_case(dataset_use_case_raw)
+
           allowed = catalog.get("use_cases", []) or []
           if dataset_use_case not in allowed:
               raise SystemExit(
@@ -381,7 +393,7 @@ jobs:
           import yaml
 
           catalog_id = os.environ["CATALOG_ID_EXISTING"].strip()
-          dataset_identifier = os.environ["DATASET_IDENTIFIER"].strip()
+          dataset_identifier_raw = os.environ["DATASET_IDENTIFIER"].strip()
           dataset_title = os.environ.get("DATASET_TITLE", "").strip()
           dataset_description = os.environ.get("DATASET_DESCRIPTION", "").strip()
           dataset_use_case_raw = os.environ.get("DATASET_USE_CASE", "").strip()
@@ -407,6 +419,18 @@ jobs:
               s = re.sub(r"[^a-z0-9-]", "-", s)
               s = re.sub(r"-+", "-", s).strip("-")
               return s
+
+          def ensure_curie(value: str, default_prefix: str = "sdcdc") -> str:
+              s = value.strip()
+              if not s:
+                  return s
+              if s.startswith("http://") or s.startswith("https://"):
+                  return s
+              if ":" in s:
+                  return s
+              return f"{default_prefix}:{s}"
+
+          dataset_identifier = ensure_curie(dataset_identifier_raw)
 
           target = None
           for ds in datasets:
