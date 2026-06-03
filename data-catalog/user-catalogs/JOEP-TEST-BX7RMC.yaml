@@ -5,4 +5,9 @@ catalog:
   version: 1
   use_cases:
   - fault-analysis
-datasets: []
+datasets:
+- id: sdcdc:test
+  title: tes
+  description: this is a test!!
+  use_case: fault-analysis
+  location: Dublin, Ireland
