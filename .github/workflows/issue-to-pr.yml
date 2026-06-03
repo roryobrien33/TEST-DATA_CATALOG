@@ -324,17 +324,17 @@ jobs:
               s = re.sub(r"-+", "-", s).strip("-")
               return s
 
-          def ensure_curie(value: str, default_prefix: str = "sdcdc") -> str:
-              s = value.strip()
+          def ensure_catalog_scoped_dataset_id(catalog_id_value: str, dataset_id_value: str) -> str:
+              s = dataset_id_value.strip()
               if not s:
                   return s
               if s.startswith("http://") or s.startswith("https://"):
                   return s
               if ":" in s:
                   return s
-              return f"{default_prefix}:{s}"
+              return f"sdcdc:{catalog_id_value}-{s}"
 
-          dataset_identifier = ensure_curie(dataset_identifier_raw)
+          dataset_identifier = ensure_catalog_scoped_dataset_id(catalog_id, dataset_identifier_raw)
           dataset_use_case = norm_use_case(dataset_use_case_raw)
 
           allowed = catalog.get("use_cases", []) or []
@@ -420,17 +420,17 @@ jobs:
               s = re.sub(r"-+", "-", s).strip("-")
               return s
 
-          def ensure_curie(value: str, default_prefix: str = "sdcdc") -> str:
-              s = value.strip()
+          def ensure_catalog_scoped_dataset_id(catalog_id_value: str, dataset_id_value: str) -> str:
+              s = dataset_id_value.strip()
               if not s:
                   return s
               if s.startswith("http://") or s.startswith("https://"):
                   return s
               if ":" in s:
                   return s
-              return f"{default_prefix}:{s}"
+              return f"sdcdc:{catalog_id_value}-{s}"
 
-          dataset_identifier = ensure_curie(dataset_identifier_raw)
+          dataset_identifier = ensure_catalog_scoped_dataset_id(catalog_id, dataset_identifier_raw)
 
           target = None
           for ds in datasets:
