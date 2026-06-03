@@ -8,7 +8,7 @@ catalog:
   owner: A
   contact: A
 datasets:
-- id: test
+- id: sdcdc:A-SF0JMV-test
   title: New_tester
   description: tester dataset
   use_case: a-a
