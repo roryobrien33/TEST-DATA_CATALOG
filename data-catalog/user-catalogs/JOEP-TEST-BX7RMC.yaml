@@ -11,3 +11,8 @@ datasets:
   description: this is a test!!
   use_case: fault-analysis
   location: Dublin, Ireland
+- id: sdcdc:JOEP-TEST-BX7RMC-test-01
+  title: test
+  description: tester
+  use_case: fault-analysis
+  location: Dublin, Ireland
