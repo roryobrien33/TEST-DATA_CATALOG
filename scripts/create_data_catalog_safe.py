@@ -11,6 +11,7 @@ def main():
 
     import simple_data_catalog_generator
     import simple_data_catalog_generator.analysis_functions as af
+    import simple_data_catalog_generator.create_catalog_page as ccp
     import simple_data_catalog_generator.create_data_catalog as cdc
 
     # Print the actual package path so it appears in the Actions log
@@ -21,9 +22,10 @@ def main():
     catalog_graph = Graph()
     catalog_graph.parse("data-catalog/data-catalog.ttl", format="turtle")
 
-    # Patch the wordcloud creation so empty catalogs do not fail the build
+    # Keep a reference to the original function
     original = af.create_theme_word_cloud
 
+    # Safe replacement for empty theme collections
     def safe_create_theme_word_cloud(*args, **kwargs):
         try:
             return original(*args, **kwargs)
@@ -33,7 +35,11 @@ def main():
                 return None
             raise
 
+    # Patch both:
+    # 1. the original module function
+    # 2. the already-imported reference inside create_catalog_page.py
     af.create_theme_word_cloud = safe_create_theme_word_cloud
+    ccp.create_theme_word_cloud = safe_create_theme_word_cloud
 
     # Run the vendored generator with the loaded graph
     cdc.create_data_catalog(catalog_graph=catalog_graph)
