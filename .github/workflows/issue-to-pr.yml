@@ -579,25 +579,4 @@ jobs:
           script: |
             await github.rest.issues.createComment({
               owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.issue.number,
-              body: "Dataset removal failed. Check the Actions logs for the exact reason."
-            });
-
-      - name: Create Pull Request
-        if: ${{ success() }}
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ github.token }}
-          commit-message: "Catalog intake: issue #${{ github.event.issue.number }}"
-          branch: "catalog-intake/${{ github.event.issue.number }}"
-          title: "Catalog intake: issue #${{ github.event.issue.number }}"
-          body: |
-            This PR was automatically generated from issue #${{ github.event.issue.number }}.
-
-            - Labels: `${{ join(github.event.issue.labels.*.name, ', ') }}`
-            - Generated Catalog ID (if applicable): `${{ steps.parse.outputs.generated_catalog_id }}`
-
-            After merge to `main`, the Pages deployment workflow will rebuild and publish the static catalog site.
-          labels: "catalog-intake-pr"
-``
+              repo
