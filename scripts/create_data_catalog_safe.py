@@ -1,20 +1,29 @@
 #!/usr/bin/env python3
-
+from pathlib import Path
+import sys
 from rdflib import Graph
 
 
 def main():
+    # Force Python to prefer the repo root so the vendored package is imported first
+    repo_root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(repo_root))
+
+    import simple_data_catalog_generator
     import simple_data_catalog_generator.analysis_functions as af
     import simple_data_catalog_generator.create_data_catalog as cdc
+
+    # Print the actual package path so it appears in the Actions log
+    print("USING simple_data_catalog_generator FROM:")
+    print(simple_data_catalog_generator.__file__)
 
     # Load the generated TTL into an RDF graph
     catalog_graph = Graph()
     catalog_graph.parse("data-catalog/data-catalog.ttl", format="turtle")
 
-    # Keep a reference to the original function
+    # Patch the wordcloud creation so empty catalogs do not fail the build
     original = af.create_theme_word_cloud
 
-    # Patch the wordcloud creation so empty catalogs do not fail the build
     def safe_create_theme_word_cloud(*args, **kwargs):
         try:
             return original(*args, **kwargs)
@@ -32,3 +41,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+``
