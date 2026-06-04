@@ -16,13 +16,13 @@ PREFIX="data-catalog/prefix.yaml"
 [[ -f "${PREFIX}" ]] || { echo "ERROR: prefix file not found: ${REPO_ROOT}/${PREFIX}" >&2; exit 1; }
 
 # Merge user catalogs -> single LinkML input
-python scripts/merge-catalogs.py
+uv run python scripts/merge-catalogs.py
 
 # Confirm merged input exists
 [[ -f "${INPUT}" ]] || { echo "ERROR: merged input YAML not found: ${REPO_ROOT}/${INPUT}" >&2; exit 1; }
 
 # Convert merged YAML -> TTL
-linkml-convert \
+uv run linkml-convert \
   -s "${SCHEMA}" \
   -t ttl \
   -o "${OUT}" \
@@ -32,4 +32,4 @@ linkml-convert \
 echo "OK: wrote TTL to ${REPO_ROOT}/${OUT}"
 
 # Generate site artifacts using repo-owned generator package
-python scripts/create_data_catalog_safe.py
+uv run python scripts/create_data_catalog_safe.py
