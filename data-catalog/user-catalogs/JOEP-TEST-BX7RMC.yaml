@@ -5,9 +5,4 @@ catalog:
   version: 1
   use_cases:
   - fault-analysis
-datasets:
-- id: sdcdc:JOEP-TEST-BX7RMC-test-01
-  title: NEW-TEST-01
-  description: Did this work? who knows!
-  use_case: fault-analysis
-  location: Darkside, Moon
+datasets: []
