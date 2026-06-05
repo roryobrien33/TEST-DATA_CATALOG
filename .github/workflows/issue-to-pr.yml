@@ -504,6 +504,7 @@ jobs:
           import os
           import pathlib
           import yaml
+          import datetime
 
           catalog_id = os.environ["CATALOG_ID_EXISTING"].strip()
           dataset_identifier_raw = os.environ["DATASET_IDENTIFIER"].strip()
@@ -513,11 +514,18 @@ jobs:
               raise SystemExit(f"Catalog not found: {p}")
 
           doc = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+
           datasets = doc.get("datasets", [])
           if datasets is None:
               datasets = []
           if not isinstance(datasets, list):
               raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
+
+          deleted_datasets = doc.get("deleted_datasets", [])
+          if deleted_datasets is None:
+              deleted_datasets = []
+          if not isinstance(deleted_datasets, list):
+              raise SystemExit("Invalid catalog YAML structure: deleted_datasets must be a list")
 
           def ensure_catalog_scoped_dataset_id(catalog_id_value: str, dataset_id_value: str) -> str:
               s = dataset_id_value.strip()
@@ -531,18 +539,42 @@ jobs:
 
           dataset_identifier = ensure_catalog_scoped_dataset_id(catalog_id, dataset_identifier_raw)
 
-          original_len = len(datasets)
-          datasets = [
-              ds for ds in datasets
-              if (ds.get("id") or ds.get("identifier")) != dataset_identifier
-          ]
+          removed_dataset = None
+          kept_datasets = []
 
-          if len(datasets) == original_len:
+          for ds in datasets:
+              ds_id = ds.get("id") or ds.get("identifier")
+              if ds_id == dataset_identifier and removed_dataset is None:
+                  removed_dataset = ds
+              else:
+                  kept_datasets.append(ds)
+
+          if removed_dataset is None:
               raise SystemExit(f"Dataset not found in catalog: {dataset_identifier}")
 
-          doc["datasets"] = datasets
-          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
-          print(f"Removed dataset {dataset_identifier} from {catalog_id}")
+          tombstone = {
+              "id": removed_dataset.get("id") or removed_dataset.get("identifier") or dataset_identifier,
+              "title": removed_dataset.get("title", ""),
+              "description": removed_dataset.get("description", ""),
+              "deleted_at": datetime.date.today().isoformat(),
+          }
+
+          already_logged = any(
+              isinstance(item, dict) and str(item.get("id", "")).strip() == tombstone["id"]
+              for item in deleted_datasets
+          )
+
+          if not already_logged:
+              deleted_datasets.append(tombstone)
+
+          doc["datasets"] = kept_datasets
+          doc["deleted_datasets"] = deleted_datasets
+
+          p.write_text(
+              yaml.safe_dump(doc, sort_keys=False, allow_unicode=True),
+              encoding="utf-8"
+          )
+          print(f"Removed dataset {dataset_identifier} from {catalog_id} and recorded it in deleted_datasets")
           PY
         env:
           CATALOG_ID_EXISTING: ${{ steps.parse.outputs.catalog_id_existing_D }}
