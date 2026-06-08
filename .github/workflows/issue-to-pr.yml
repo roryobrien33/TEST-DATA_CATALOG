@@ -60,6 +60,16 @@ jobs:
                 .replace(/^-|-$/g, "");
             }
 
+            function slugify(name) {
+              return name
+                .trim()
+                .toLowerCase()
+                .replace(/[\s_]+/g, "-")
+                .replace(/[^a-z0-9-]/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-|-$/g, "");
+            }
+
             function randomToken6() {
               const n = Math.floor(Math.random() * (36 ** 6));
               return n.toString(36).toUpperCase().padStart(6, "0");
@@ -138,7 +148,7 @@ jobs:
             const dataset_identifier_D = getField("Dataset identifier");
 
             // Create concept fields
-            const concept_id_E = getField("Concept ID");
+            const concept_id_E = getField("Concept ID (optional)");
             const concept_pref_label_E = getField("Concept preferred label");
             const concept_definition_E = getField("Concept definition");
             const concept_alt_label_E = getField("Concept alternative label (optional)");
@@ -197,12 +207,10 @@ jobs:
             }
 
             if (isCreateConcept) {
-              if (!concept_id_E) errors.push("Missing: Concept ID");
               if (!concept_pref_label_E) errors.push("Missing: Concept preferred label");
               if (!concept_definition_E) errors.push("Missing: Concept definition");
 
               const rel = (relationship_type_E || "").trim().toLowerCase();
-
               if (rel === "child concept" && !parent_concept_id_E) {
                 errors.push("Missing: Parent concept ID (required if Relationship type = Child concept)");
               }
@@ -214,7 +222,13 @@ jobs:
               generated_catalog_id = base + "-" + randomToken6();
             }
 
-            const normalized_concept_id_E = normalizeConceptId(concept_id_E);
+            let generated_concept_id = "";
+            if (isCreateConcept && concept_pref_label_E) {
+              generated_concept_id = concept_id_E
+                ? normalizeConceptId(concept_id_E)
+                : `sdcdc:concept-${slugify(concept_pref_label_E)}`;
+            }
+
             const normalized_parent_concept_id_E = normalizeConceptId(parent_concept_id_E);
             const normalized_child_concept_ids_E = parseConceptIdCsv(child_concept_ids_E);
 
@@ -253,7 +267,7 @@ jobs:
             core.setOutput("catalog_id_existing_D", catalog_id_existing_D);
             core.setOutput("dataset_identifier_D", dataset_identifier_D);
 
-            core.setOutput("concept_id_E", normalized_concept_id_E);
+            core.setOutput("concept_id_E", generated_concept_id);
             core.setOutput("concept_pref_label_E", concept_pref_label_E);
             core.setOutput("concept_definition_E", concept_definition_E);
             core.setOutput("concept_alt_label_E", concept_alt_label_E);
@@ -530,7 +544,7 @@ jobs:
               target["description"] = dataset_description
 
           if dataset_use_case_raw:
-              dataset_use_case = norm_use_case(dataset_use_case_raw)
+              dataset_use_case = norm_useCase(dataset_use_case_raw)
               allowed = catalog.get("use_cases", []) or []
               if dataset_use_case not in allowed:
                   raise SystemExit(
