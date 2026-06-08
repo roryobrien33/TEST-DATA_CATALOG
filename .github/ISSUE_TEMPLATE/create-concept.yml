@@ -12,12 +12,15 @@ body:
         A concept is stored separately from datasets so it can be reused
         across multiple datasets later.
 
+        Concept IDs will be generated in the form:
+        sdcdc:<catalog-id>-concept-<concept-name>
+
   - type: input
-    id: concept_id
+    id: catalog_id_existing
     attributes:
-      label: Concept ID
-      description: "Required. Stable identifier for the concept. You can use either 'sdcdc:concept-voltage' or 'concept-voltage'."
-      placeholder: "sdcdc:concept-voltage"
+      label: Catalog ID (existing)
+      description: "Required. The catalog context used to generate the concept ID."
+      placeholder: "A-SF0JMV"
     validations:
       required: true
 
@@ -62,7 +65,7 @@ body:
     attributes:
       label: Broader concept ID (optional)
       description: "Optional. Parent concept ID."
-      placeholder: "sdcdc:concept-electricity"
+      placeholder: "sdcdc:A-SF0JMV-concept-electricity"
     validations:
       required: false
 
@@ -71,6 +74,6 @@ body:
     attributes:
       label: Narrower concept IDs (optional)
       description: "Optional. Child concept IDs, comma-separated."
-      placeholder: "sdcdc:concept-phase-voltage, sdcdc:concept-line-voltage"
+      placeholder: "sdcdc:A-SF0JMV-concept-phase-voltage, sdcdc:A-SF0JMV-concept-line-voltage"
     validations:
       required: false
