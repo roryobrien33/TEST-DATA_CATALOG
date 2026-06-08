@@ -25,15 +25,19 @@ def main():
     # Keep a reference to the original function
     original = af.create_theme_word_cloud
 
-    # Safe replacement for empty theme collections
+    # Safe replacement for empty / zero-frequency theme collections
     def safe_create_theme_word_cloud(*args, **kwargs):
         try:
             return original(*args, **kwargs)
         except ValueError as e:
             msg = str(e)
             if "We need at least 1 word to plot a word cloud" in msg and "got 0" in msg:
+                print("Skipping theme word cloud: no valid theme frequencies found.")
                 return None
             raise
+        except ZeroDivisionError:
+            print("Skipping theme word cloud: zero total/max frequency.")
+            return None
 
     # Patch both:
     # 1. the original module function
