@@ -11,6 +11,8 @@ body:
 
         Concepts are independent entities and are not tied to a catalog during creation.
 
+        If you leave the Concept ID blank, it will be auto-generated from the preferred label.
+
         Relationship guidance:
         - If this is a child concept, provide the Parent concept ID.
         - If this is a parent concept, optionally provide Child concept IDs.
@@ -19,11 +21,11 @@ body:
   - type: input
     id: concept_id
     attributes:
-      label: Concept ID
-      description: "Required. Stable identifier for the concept. Example: sdcdc:concept-voltage"
+      label: Concept ID (optional)
+      description: "Optional. Stable identifier for the concept. If left blank, one will be generated automatically."
       placeholder: "sdcdc:concept-voltage"
     validations:
-      required: true
+      required: false
 
   - type: input
     id: concept_pref_label
