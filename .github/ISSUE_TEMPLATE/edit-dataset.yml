@@ -1,5 +1,5 @@
-name: Edit existing dataset
-description: Edit an existing dataset inside an existing catalog using the catalog ID and dataset identifier.
+name: Edit dataset
+description: Edit an existing dataset in an existing catalog
 title: "[Edit Dataset] "
 labels: ["catalog-edit-dataset", "catalog-intake"]
 
@@ -7,14 +7,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this form to edit an existing dataset inside an existing catalog.
+        Use this form to edit an existing dataset in a catalog.
 
-        You must provide:
+        Fill in:
         - the exact **Catalog ID**
         - the exact **Dataset identifier**
+        - at least one field to update
 
-        Only fill in the fields you want to update.
-        Leave any field blank if you do not want to change it.
+        If linking concepts, use existing **Concept IDs** (comma-separated).
 
   - type: input
     id: catalog_id_existing
@@ -29,8 +29,8 @@ body:
     id: dataset_identifier
     attributes:
       label: Dataset identifier
-      description: "Required. Use the exact identifier of the dataset you want to edit."
-      placeholder: "sdcdc:dataset-001"
+      description: "Required. Use the exact dataset identifier."
+      placeholder: "sdcdc:A-SF0JMV-test"
     validations:
       required: true
 
@@ -38,8 +38,8 @@ body:
     id: dataset_title
     attributes:
       label: Dataset title (optional)
-      description: "Optional. Enter a new title only if you want to update it."
-      placeholder: "Updated dataset title"
+      description: "Optional. New dataset title."
+      placeholder: "Updated voltage measurements"
     validations:
       required: false
 
@@ -47,8 +47,8 @@ body:
     id: dataset_description
     attributes:
       label: Dataset description (optional)
-      description: "Optional. Enter a new description only if you want to update it."
-      placeholder: "Updated dataset description..."
+      description: "Optional. Updated dataset description."
+      placeholder: "Updated description."
     validations:
       required: false
 
@@ -56,8 +56,8 @@ body:
     id: dataset_use_case
     attributes:
       label: Dataset use case (optional)
-      description: "Optional. Must match one of the allowed use cases defined in the target catalog."
-      placeholder: "fault-analysis"
+      description: "Optional. Must match one of the allowed catalog use cases."
+      placeholder: "a-a"
     validations:
       required: false
 
@@ -65,17 +65,17 @@ body:
     id: location
     attributes:
       label: Geographical Location (high-level) (optional)
-      description: "Optional. Broad location/context only."
+      description: "Optional. Updated high-level geographic location."
       placeholder: "Munich, Germany"
     validations:
       required: false
 
   - type: input
-    id: concepts
+    id: concept_ids
     attributes:
-      label: Concepts / tags (optional)
-      description: "Optional. Replace concepts/tags with a new comma-separated list."
-      placeholder: "overload, distribution-grid, csv"
+      label: Concept IDs (optional, comma-separated)
+      description: "Optional. Replace with existing concept IDs, comma-separated."
+      placeholder: "sdcdc:concept-voltage, sdcdc:concept-harmonics"
     validations:
       required: false
 
@@ -83,9 +83,9 @@ body:
     id: distributions
     attributes:
       label: Distribution links (optional)
-      description: "Optional. Replace distributions with a new list, one per line."
+      description: "Optional. Replace with one distribution/access link per line."
       placeholder: |
-        https://example.com/data.csv
-        https://example.com/readme
+        https://example.com/file.csv
+        https://example.com/api
     validations:
       required: false
