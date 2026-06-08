@@ -60,6 +60,16 @@ jobs:
                 .replace(/^-|-$/g, "");
             }
 
+            function slugify(name) {
+              return name
+                .trim()
+                .toLowerCase()
+                .replace(/[\s_]+/g, "-")
+                .replace(/[^a-z0-9-]/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-|-$/g, "");
+            }
+
             function randomToken6() {
               const n = Math.floor(Math.random() * (36 ** 6));
               return n.toString(36).toUpperCase().padStart(6, "0");
@@ -83,19 +93,20 @@ jobs:
                 .filter(Boolean);
             }
 
-            function normalizeConceptId(raw) {
+            function normalizeConceptId(raw, catalogId = "") {
               const s = (raw || "").trim();
               if (!s) return "";
               if (s.startsWith("http://") || s.startsWith("https://")) return s;
               if (s.includes(":")) return s;
+              if (catalogId && s.startsWith("concept-")) return `sdcdc:${catalogId}-${s}`;
               return `sdcdc:${s}`;
             }
 
-            function parseIdCsv(raw) {
+            function parseIdCsv(raw, catalogId = "") {
               if (!raw) return [];
               return raw
                 .split(",")
-                .map(x => normalizeConceptId(x))
+                .map(x => normalizeConceptId(x, catalogId))
                 .filter(Boolean);
             }
 
@@ -138,7 +149,7 @@ jobs:
             const dataset_identifier_D = getField("Dataset identifier");
 
             // Create concept fields
-            const concept_id_E = getField("Concept ID");
+            const catalog_id_existing_E = getField("Catalog ID (existing)");
             const concept_pref_label_E = getField("Concept preferred label");
             const concept_definition_E = getField("Concept definition");
             const concept_alt_label_E = getField("Concept alternative label (optional)");
@@ -196,7 +207,7 @@ jobs:
             }
 
             if (isCreateConcept) {
-              if (!concept_id_E) errors.push("Missing: Concept ID");
+              if (!catalog_id_existing_E) errors.push("Missing: Catalog ID (existing)");
               if (!concept_pref_label_E) errors.push("Missing: Concept preferred label");
               if (!concept_definition_E) errors.push("Missing: Concept definition");
             }
@@ -207,9 +218,13 @@ jobs:
               generated_catalog_id = base + "-" + randomToken6();
             }
 
-            const normalized_concept_id_E = normalizeConceptId(concept_id_E);
-            const normalized_broader_concept_id_E = normalizeConceptId(broader_concept_id_E);
-            const normalized_narrower_concept_ids_E = parseIdCsv(narrower_concept_ids_E);
+            let generated_concept_id = "";
+            if (isCreateConcept && catalog_id_existing_E && concept_pref_label_E) {
+              generated_concept_id = `sdcdc:${catalog_id_existing_E}-concept-${slugify(concept_pref_label_E)}`;
+            }
+
+            const normalized_broader_concept_id_E = normalizeConceptId(broader_concept_id_E, catalog_id_existing_E);
+            const normalized_narrower_concept_ids_E = parseIdCsv(narrower_concept_ids_E, catalog_id_existing_E);
 
             core.setOutput("errors", JSON.stringify(errors));
             core.setOutput("is_create_catalog", String(isCreateCatalog));
@@ -246,13 +261,14 @@ jobs:
             core.setOutput("catalog_id_existing_D", catalog_id_existing_D);
             core.setOutput("dataset_identifier_D", dataset_identifier_D);
 
-            core.setOutput("concept_id_E", normalized_concept_id_E);
+            core.setOutput("catalog_id_existing_E", catalog_id_existing_E);
             core.setOutput("concept_pref_label_E", concept_pref_label_E);
             core.setOutput("concept_definition_E", concept_definition_E);
             core.setOutput("concept_alt_label_E", concept_alt_label_E);
             core.setOutput("concept_example_E", concept_example_E);
             core.setOutput("broader_concept_id_E", normalized_broader_concept_id_E);
             core.setOutput("narrower_concept_ids_E", JSON.stringify(normalized_narrower_concept_ids_E));
+            core.setOutput("generated_concept_id", generated_concept_id);
 
       - name: Comment and stop on validation errors
         if: ${{ fromJSON(steps.parse.outputs.errors)[0] != null }}
@@ -293,7 +309,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.issue.number,
-              body: "Concept ID: `${{ steps.parse.outputs.concept_id_E }}`"
+              body: "Generated Concept ID: `${{ steps.parse.outputs.generated_concept_id }}`"
             });
 
       - name: Create catalog YAML
@@ -704,7 +720,7 @@ jobs:
           print(f"Wrote concept file: {p}")
           PY
         env:
-          CONCEPT_ID: ${{ steps.parse.outputs.concept_id_E }}
+          CONCEPT_ID: ${{ steps.parse.outputs.generated_concept_id }}
           CONCEPT_PREF_LABEL: ${{ steps.parse.outputs.concept_pref_label_E }}
           CONCEPT_DEFINITION: ${{ steps.parse.outputs.concept_definition_E }}
           CONCEPT_ALT_LABEL: ${{ steps.parse.outputs.concept_alt_label_E }}
@@ -784,7 +800,7 @@ jobs:
 
             - Labels: `${{ join(github.event.issue.labels.*.name, ', ') }}`
             - Generated Catalog ID (if applicable): `${{ steps.parse.outputs.generated_catalog_id }}`
-            - Concept ID (if applicable): `${{ steps.parse.outputs.concept_id_E }}`
+            - Generated Concept ID (if applicable): `${{ steps.parse.outputs.generated_concept_id }}`
 
             After merge to `main`, the Pages deployment workflow will rebuild and publish the static catalog site.
           labels: "catalog-intake-pr"
