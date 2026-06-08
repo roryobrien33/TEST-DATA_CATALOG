@@ -130,7 +130,7 @@ jobs:
             const dataset_description_B = getField("Dataset description");
             const dataset_use_case_B = getField("Dataset use case");
             const location_B = getField("Geographical Location (high-level)");
-            const concepts_B = getField("Concepts / tags (optional)");
+            const concepts_B = getField("Concept IDs (optional, comma-separated)");
             const distributions_B = getField("Distribution links (optional)");
 
             // Edit dataset fields
@@ -140,7 +140,7 @@ jobs:
             const dataset_description_C = getField("Dataset description (optional)");
             const dataset_use_case_C = getField("Dataset use case (optional)");
             const location_C = getField("Geographical Location (high-level) (optional)");
-            const concepts_C = getField("Concepts / tags (optional)");
+            const concepts_C = getField("Concept IDs (optional, comma-separated)");
             const distributions_C = getField("Distribution links (optional)");
 
             // Remove dataset fields
