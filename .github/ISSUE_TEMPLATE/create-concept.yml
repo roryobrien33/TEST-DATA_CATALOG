@@ -13,6 +13,15 @@ body:
         across multiple datasets later.
 
   - type: input
+    id: concept_id
+    attributes:
+      label: Concept ID
+      description: "Required. Stable identifier for the concept. You can use either 'sdcdc:concept-voltage' or 'concept-voltage'."
+      placeholder: "sdcdc:concept-voltage"
+    validations:
+      required: true
+
+  - type: input
     id: concept_pref_label
     attributes:
       label: Concept preferred label
@@ -45,5 +54,23 @@ body:
       label: Concept example (optional)
       description: "Optional. Example usage of the concept."
       placeholder: "Nominal voltage of a distribution feeder."
+    validations:
+      required: false
+
+  - type: input
+    id: broader_concept_id
+    attributes:
+      label: Broader concept ID (optional)
+      description: "Optional. Parent concept ID."
+      placeholder: "sdcdc:concept-electricity"
+    validations:
+      required: false
+
+  - type: input
+    id: narrower_concept_ids
+    attributes:
+      label: Narrower concept IDs (optional)
+      description: "Optional. Child concept IDs, comma-separated."
+      placeholder: "sdcdc:concept-phase-voltage, sdcdc:concept-line-voltage"
     validations:
       required: false
