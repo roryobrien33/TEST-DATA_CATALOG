@@ -1,0 +1,4 @@
+concept:
+  identifier: sdcdc:concept-voltage
+  prefLabel: Voltage
+  definition: Voltage.
