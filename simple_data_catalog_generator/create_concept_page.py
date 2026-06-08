@@ -1,73 +1,165 @@
-import pydantic
-from rdflib import Graph, URIRef, RDF, DCAT, DCTERMS, SKOS
+from pathlib import Path
+import yaml
 
-from pydantic import BaseModel, Field
-from typing import List, Optional
-# from create_metadata_table import create_metadata_table
+from rdflib import Graph, URIRef, RDF
+from rdflib.namespace import SKOS, DCTERMS, DCAT
 
-import os
-import re
+from simple_data_catalog_generator.page_creation_functions import (
+    write_file,
+    get_prefLabel,
+    get_definition,
+    get_id,
+    create_local_link,
+)
 
-from simple_data_catalog_generator.create_metadata_table import create_metadata_table
-from simple_data_catalog_generator.analysis_functions import create_theme_word_cloud
-from simple_data_catalog_generator.page_creation_functions import write_file, get_title, create_local_link, get_prefLabel, get_definition
-from simple_data_catalog_generator.create_adoc_table import create_adoc_table
+
+def _load_source_concept_yaml(concept: URIRef, catalog_graph: Graph):
+    """
+    Load the source concept YAML file corresponding to this concept.
+    """
+    concept_id = get_id(concept, catalog_graph)
+
+    candidate_names = [concept_id]
+    if ":" in concept_id:
+        candidate_names.append(concept_id.split(":", 1)[1])
+    if "/" in concept_id:
+        candidate_names.append(concept_id.rstrip("/").split("/")[-1])
+    if "#" in concept_id:
+        candidate_names.append(concept_id.split("#")[-1])
+
+    seen = set()
+    candidate_names = [x for x in candidate_names if not (x in seen or seen.add(x))]
+
+    for name in candidate_names:
+        for ext in (".yaml", ".yml"):
+            p = Path(f"data-catalog/concepts/{name}{ext}")
+            if p.exists():
+                return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+
+    return {}
+
+
+def _find_concept_resource_by_identifier(catalog_graph: Graph, concept_identifier: str):
+    for concept in catalog_graph.subjects(RDF.type, SKOS.Concept):
+        concept_id = str(catalog_graph.value(concept, DCTERMS.identifier) or "").strip()
+        if concept_id == concept_identifier:
+            return concept
+    return None
+
+
+def _concept_link_or_text(catalog_graph: Graph, concept_identifier: str):
+    if not concept_identifier:
+        return ""
+    concept_resource = _find_concept_resource_by_identifier(catalog_graph, concept_identifier)
+    if concept_resource is not None:
+        return create_local_link(concept_resource, catalog_graph)
+    return f"`{concept_identifier}`"
 
 
 def create_concept_page(concept: URIRef, catalog_graph: Graph):
     adoc_str = str()
 
-    # add title
-    adoc_str += "= " + get_prefLabel(subject=concept, graph=catalog_graph) + "\n\n"
+    source_doc = _load_source_concept_yaml(concept, catalog_graph)
+    source_concept = source_doc.get("concept", {}) or {}
 
-    # add description
-    adoc_str += get_definition(subject=concept, graph=catalog_graph) + "\n\n"
-    
-    # add alt labels
-    adoc_str += "== Alternative labels \n\n"
-    for label in catalog_graph.objects(concept, SKOS.altLabel):
-        adoc_str += "- " + str(label) + "\n"
+    concept_name = get_prefLabel(concept, catalog_graph)
+    concept_id = get_id(concept, catalog_graph)
+    concept_definition = get_definition(concept, catalog_graph)
 
-    adoc_str += "\n"  
-    
-    # add concept hierarchy
-    adoc_str += "== Concept Hierarchy \n\n"
-    hierarchy = []
-    current_concept = concept
-    
-    while True:
-        narrower_concepts = list(catalog_graph.objects(current_concept, SKOS.narrower))
-        
-        if len(narrower_concepts) == 0:
-            break
-        
-        next_concept = None
-        for narrower in narrower_concepts:
-            hierarchy.append(str(narrower))
-            next_concept = narrower
-            break
-        
-        current_concept = next_concept
-    
-    adoc_str += "hierarchy: " + ", ".join(hierarchy) + "\n\n"
+    concept_alt_label = str(source_concept.get("altLabel", "")).strip()
+    concept_example = str(source_concept.get("example", "")).strip()
+    broader_id = str(source_concept.get("broader", "")).strip()
+    narrower_ids = source_concept.get("narrower", [])
+    if narrower_ids is None:
+        narrower_ids = []
+    if isinstance(narrower_ids, str):
+        narrower_ids = [narrower_ids]
+    if not isinstance(narrower_ids, list):
+        narrower_ids = []
 
+    # Datasets linked to this concept via dcat:theme
+    themed_datasets = []
+    for dataset in catalog_graph.subjects(DCAT.theme, concept):
+        themed_datasets.append(create_local_link(dataset, catalog_graph))
 
-    # create a table of all the datasets that have this concept as theme
+    # Title
+    adoc_str += "= " + concept_name + "\n\n"
 
-    adoc_str += "== Datasets with this theme \n\n"
-    dataset_table_entries = []
-    
-    for dataset in catalog_graph.subjects(RDF.type, DCAT.Dataset):
-        if concept in catalog_graph.objects(dataset, DCAT.theme):
-            link_str = create_local_link(resource=dataset, catalog_graph=catalog_graph)
-            dataset_table_entries.append(f"{link_str}")
-    
-    adoc_str += create_adoc_table(entries=dataset_table_entries, num_cols=1)
+    # Details
+    adoc_str += "== Concept Details\n\n"
+    adoc_str += f"* **Name:** {concept_name}\n"
+    adoc_str += f"* **ID:** `{concept_id}`\n"
 
-    # write file 
-    write_file(adoc_str=adoc_str, 
-               resource=concept, 
-               output_dir='modules/concept/pages/', 
-               catalog_graph= catalog_graph)
+    if concept_definition and concept_definition != "None":
+        adoc_str += f"* **Definition:** {concept_definition}\n"
+    else:
+        adoc_str += "* **Definition:** Not available\n"
+
+    if concept_alt_label:
+        adoc_str += f"* **Alternative label:** {concept_alt_label}\n"
+    else:
+        adoc_str += "* **Alternative label:** Not available\n"
+
+    if concept_example:
+        adoc_str += f"* **Example:** {concept_example}\n"
+    else:
+        adoc_str += "* **Example:** Not available\n"
+
+    if broader_id:
+        adoc_str += f"* **Broader concept:** {_concept_link_or_text(catalog_graph, broader_id)}\n"
+    else:
+        adoc_str += "* **Broader concept:** None\n"
+
+    if narrower_ids:
+        adoc_str += "* **Narrower concepts:**\n"
+        for cid in narrower_ids:
+            cid = str(cid).strip()
+            if cid:
+                adoc_str += f"** {_concept_link_or_text(catalog_graph, cid)}\n"
+    else:
+        adoc_str += "* **Narrower concepts:** None\n"
+
+    adoc_str += "\n"
+
+    # Alternative Labels section
+    adoc_str += "== Alternative labels\n\n"
+    if concept_alt_label:
+        adoc_str += f"* {concept_alt_label}\n\n"
+    else:
+        adoc_str += "No alternative labels.\n\n"
+
+    # Concept Hierarchy section
+    adoc_str += "== Concept hierarchy\n\n"
+
+    if broader_id:
+        adoc_str += "* **Broader concept:**\n"
+        adoc_str += f"** {_concept_link_or_text(catalog_graph, broader_id)}\n"
+    else:
+        adoc_str += "* **Broader concept:** None\n"
+
+    if narrower_ids:
+        adoc_str += "* **Narrower concepts:**\n"
+        for cid in narrower_ids:
+            cid = str(cid).strip()
+            if cid:
+                adoc_str += f"** {_concept_link_or_text(catalog_graph, cid)}\n"
+    else:
+        adoc_str += "* **Narrower concepts:** None\n"
+
+    adoc_str += "\n"
+
+    # Datasets with this theme
+    adoc_str += "== Datasets with this theme\n\n"
+    if themed_datasets:
+        adoc_str += "\n".join(themed_datasets) + "\n\n"
+    else:
+        adoc_str += "No datasets linked to this concept.\n\n"
+
+    write_file(
+        adoc_str=adoc_str,
+        resource=concept,
+        output_dir='modules/concept/pages/',
+        catalog_graph=catalog_graph
+    )
 
     return 1
