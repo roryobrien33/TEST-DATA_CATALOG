@@ -1,5 +1,5 @@
-name: Add dataset to existing catalog
-description: Add a new dataset to an existing catalog using the catalog ID.
+name: Add dataset to catalog
+description: Add a new dataset to an existing catalog
 title: "[Add Dataset] "
 labels: ["catalog-add-dataset", "catalog-intake"]
 
@@ -7,9 +7,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this form to add a new dataset to an existing catalog.
+        Use this form to add a dataset to an existing catalog.
 
-        You must provide the exact **Catalog ID** of the catalog you want to update.
+        If linking concepts, use existing **Concept IDs** (comma-separated).
 
   - type: input
     id: catalog_id_existing
@@ -24,8 +24,8 @@ body:
     id: dataset_identifier
     attributes:
       label: Dataset identifier
-      description: "Required. Must be unique within the target catalog."
-      placeholder: "ex:dataset-001"
+      description: "Required. Short dataset ID or full ID. If you enter a short ID, it will be normalized."
+      placeholder: "test"
     validations:
       required: true
 
@@ -33,8 +33,8 @@ body:
     id: dataset_title
     attributes:
       label: Dataset title
-      description: "Required. Human-readable title for the dataset."
-      placeholder: "Overload simulation - GRID01"
+      description: "Required. Human-readable dataset name."
+      placeholder: "Voltage measurements"
     validations:
       required: true
 
@@ -42,8 +42,8 @@ body:
     id: dataset_description
     attributes:
       label: Dataset description
-      description: "Required. Briefly describe what the dataset contains and how it can be used."
-      placeholder: "This dataset contains simulation outputs for..."
+      description: "Required. Brief description of the dataset."
+      placeholder: "Distribution grid voltage measurements for feeder A."
     validations:
       required: true
 
@@ -51,8 +51,8 @@ body:
     id: dataset_use_case
     attributes:
       label: Dataset use case
-      description: "Required. Must match one of the allowed use cases defined in the target catalog."
-      placeholder: "fault-analysis"
+      description: "Required. Must match one of the allowed catalog use cases."
+      placeholder: "a-a"
     validations:
       required: true
 
@@ -60,17 +60,17 @@ body:
     id: location
     attributes:
       label: Geographical Location (high-level)
-      description: "Required. Broad location/context only."
+      description: "Required. High-level geographic location."
       placeholder: "Munich, Germany"
     validations:
       required: true
 
   - type: input
-    id: concepts
+    id: concept_ids
     attributes:
-      label: Concepts / tags (optional)
-      description: "Optional. Comma-separated values."
-      placeholder: "overload, distribution-grid, csv"
+      label: Concept IDs (optional, comma-separated)
+      description: "Optional. Use existing concept IDs, comma-separated."
+      placeholder: "sdcdc:concept-voltage, sdcdc:concept-harmonics"
     validations:
       required: false
 
@@ -78,9 +78,9 @@ body:
     id: distributions
     attributes:
       label: Distribution links (optional)
-      description: "Optional. One per line."
+      description: "Optional. One distribution/access link per line."
       placeholder: |
-        https://example.com/data.csv
-        https://example.com/readme
+        https://example.com/file.csv
+        https://example.com/api
     validations:
       required: false
