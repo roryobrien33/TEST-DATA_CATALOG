@@ -7,7 +7,15 @@ catalog:
   - a-a
   owner: A
   contact: A
-datasets: []
+datasets:
+- id: sdcdc:A-SF0JMV-check
+  title: Check
+  description: check
+  use_case: a-a
+  location: Dublin, Ireland
+  concepts:
+  - sdcdc:concept-voltage
+  - sdcdc:concept-harmonics
 deleted_datasets:
 - id: sdcdc:A-SF0JMV-test
   title: New_tester
