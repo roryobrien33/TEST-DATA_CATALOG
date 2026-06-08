@@ -1,0 +1,5 @@
+concept:
+  identifier: sdcdc:concept-harmonics
+  prefLabel: Harmonics
+  definition: harmonicz
+  broader: sdcdc:data-catalogconcept-voltage
