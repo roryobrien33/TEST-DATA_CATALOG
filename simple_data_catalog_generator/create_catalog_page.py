@@ -2,7 +2,7 @@ from pathlib import Path
 import yaml
 
 from rdflib import Graph, URIRef, RDF
-from rdflib.namespace import DCAT, DCTERMS
+from rdflib.namespace import DCAT, DCTERMS, SKOS
 
 from simple_data_catalog_generator.create_metadata_table import create_metadata_table
 from simple_data_catalog_generator.analysis_functions import create_theme_word_cloud
@@ -12,14 +12,12 @@ from simple_data_catalog_generator.page_creation_functions import (
     get_description,
     get_id,
     create_local_link,
+    get_prefLabel,
+    get_definition,
 )
 
 
 def _first_literal(graph: Graph, subject: URIRef, predicates):
-    """
-    Return the first non-empty value found for the given subject
-    across the supplied predicate list.
-    """
     for pred in predicates:
         val = graph.value(subject, pred)
         if val is not None and str(val).strip() and str(val).strip() != "None":
@@ -28,15 +26,6 @@ def _first_literal(graph: Graph, subject: URIRef, predicates):
 
 
 def _build_dataset_table(catalog_graph: Graph, catalog: URIRef) -> str:
-    """
-    Build an AsciiDoc table listing active datasets in the catalog.
-
-    Columns:
-    - Name
-    - ID
-    - Use Case
-    - Description
-    """
     dataset_rows = []
 
     for dataset in catalog_graph.objects(catalog, DCAT.dataset):
@@ -88,10 +77,6 @@ def _build_dataset_table(catalog_graph: Graph, catalog: URIRef) -> str:
 
 
 def _load_all_deleted_datasets():
-    """
-    Load deleted dataset tombstones from all source user-catalog YAML files.
-    Returns a list of dicts with an added `catalog_id` field.
-    """
     rows = []
 
     catalog_files = sorted(Path("data-catalog/user-catalogs").glob("*.yaml")) + sorted(
@@ -128,9 +113,6 @@ def _load_all_deleted_datasets():
 
 
 def _build_deleted_dataset_table() -> str:
-    """
-    Build an AsciiDoc table listing deleted datasets across all source catalogs.
-    """
     deleted_rows = _load_all_deleted_datasets()
 
     if not deleted_rows:
@@ -156,6 +138,39 @@ def _build_deleted_dataset_table() -> str:
     return table_str
 
 
+def _build_concept_table(catalog_graph: Graph) -> str:
+    concept_rows = []
+
+    for concept in catalog_graph.subjects(RDF.type, SKOS.Concept):
+        concept_name = get_prefLabel(concept, catalog_graph)
+        concept_id = get_id(concept, catalog_graph)
+        concept_definition = get_definition(concept, catalog_graph)
+
+        if not concept_definition or concept_definition == "None":
+            concept_definition = "Not available"
+
+        concept_link = create_local_link(concept, catalog_graph)
+        concept_name_display = concept_link if concept_link else concept_name
+
+        concept_rows.append((concept_name.lower(), concept_name_display, concept_id, concept_definition))
+
+    if not concept_rows:
+        return "No concepts available.\n\n"
+
+    concept_rows.sort(key=lambda x: x[0])
+
+    table_str = "|===\n"
+    table_str += "| Name | ID | Definition\n\n"
+
+    for _, name_display, concept_id, concept_definition in concept_rows:
+        table_str += f"| {name_display}\n"
+        table_str += f"| `{concept_id}`\n"
+        table_str += f"| {concept_definition}\n\n"
+
+    table_str += "|===\n\n"
+    return table_str
+
+
 def create_catalog_page(catalog_graph: Graph, output_dir: str = "modules/data-catalog/pages/"):
     adoc_str = str()
 
@@ -166,14 +181,10 @@ def create_catalog_page(catalog_graph: Graph, output_dir: str = "modules/data-ca
     if catalog is None:
         raise ValueError("No resource found with rdf:type dcat:Catalog")
 
-    # ---------------------------
     # Title
-    # ---------------------------
     adoc_str += "= " + get_title(catalog, catalog_graph) + "\n\n"
 
-    # ---------------------------
     # Description
-    # ---------------------------
     adoc_str += "== Description\n\n"
     desc = get_description(catalog, catalog_graph)
     if desc and desc != "None":
@@ -181,49 +192,39 @@ def create_catalog_page(catalog_graph: Graph, output_dir: str = "modules/data-ca
     else:
         adoc_str += "No description available.\n\n"
 
-    # ---------------------------
     # Machine-readable link
-    # ---------------------------
     adoc_str += (
         "A machine readable version of this data catalog can be found here: "
         "xref:attachment$data-catalog.ttl[data-catalog.ttl]\n\n"
     )
 
-    # ---------------------------
     # Overview
-    # ---------------------------
     adoc_str += "== Overview\n\n"
     adoc_str += create_metadata_table(
         catalog_graph=catalog_graph,
         resource=catalog
     ) + "\n\n"
 
-    # ---------------------------
     # Active dataset table
-    # ---------------------------
     adoc_str += "== Datasets\n\n"
     adoc_str += _build_dataset_table(catalog_graph=catalog_graph, catalog=catalog)
 
-    # ---------------------------
-    # Deleted dataset lineage table (NEW)
-    # ---------------------------
+    # Deleted dataset lineage table
     adoc_str += "== Deleted datasets\n\n"
     adoc_str += _build_deleted_dataset_table()
 
-    # ---------------------------
-    # Datasets by Theme
-    # ---------------------------
-    adoc_str += "== Datasets by Theme\n\n"
+    # Concept table
+    adoc_str += "== Concepts\n\n"
+    adoc_str += _build_concept_table(catalog_graph=catalog_graph)
 
+    # Datasets by Theme
+    adoc_str += "== Datasets by Theme\n\n"
     create_theme_word_cloud(
         catalog_graph=catalog_graph,
         output_dir="modules/data-catalog/images/"
     )
     adoc_str += "image:wordcloud.svg[Theme Word Cloud]\n\n"
 
-    # ---------------------------
-    # Write file
-    # ---------------------------
     write_file(
         adoc_str=adoc_str,
         resource=catalog,
