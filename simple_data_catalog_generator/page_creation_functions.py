@@ -206,4 +206,3 @@ def create_nav_header(page_type: str):
 
     with open(nav_file_path, "a", encoding="utf-8") as f:
         f.write(nav_header)
-``
