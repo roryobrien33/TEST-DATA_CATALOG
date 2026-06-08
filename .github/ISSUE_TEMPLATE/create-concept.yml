@@ -1,0 +1,49 @@
+name: Create concept
+description: Create an independent concept that can later be linked to datasets
+title: "[Create Concept] "
+labels: ["catalog-create-concept", "catalog-intake"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to create an independent concept.
+
+        A concept is stored separately from datasets so it can be reused
+        across multiple datasets later.
+
+  - type: input
+    id: concept_pref_label
+    attributes:
+      label: Concept preferred label
+      description: "Required. Human-readable concept name."
+      placeholder: "Voltage"
+    validations:
+      required: true
+
+  - type: textarea
+    id: concept_definition
+    attributes:
+      label: Concept definition
+      description: "Required. Brief definition of the concept."
+      placeholder: "A measure of electric potential difference between two points."
+    validations:
+      required: true
+
+  - type: input
+    id: concept_alt_label
+    attributes:
+      label: Concept alternative label (optional)
+      description: "Optional. Alternative name or synonym."
+      placeholder: "Electrical potential"
+    validations:
+      required: false
+
+  - type: textarea
+    id: concept_example
+    attributes:
+      label: Concept example (optional)
+      description: "Optional. Example usage of the concept."
+      placeholder: "Nominal voltage of a distribution feeder."
+    validations:
+      required: false
