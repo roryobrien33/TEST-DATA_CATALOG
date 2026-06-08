@@ -9,18 +9,19 @@ body:
       value: |
         Use this form to create an independent concept.
 
-        A concept is stored separately from datasets so it can be reused
-        across multiple datasets later.
+        Concepts are independent entities and are not tied to a catalog during creation.
 
-        Concept IDs will be generated in the form:
-        sdcdc:<catalog-id>-concept-<concept-name>
+        Relationship guidance:
+        - If this is a child concept, provide the Parent concept ID.
+        - If this is a parent concept, optionally provide Child concept IDs.
+        - If this concept has no hierarchy relationship yet, leave those fields blank.
 
   - type: input
-    id: catalog_id_existing
+    id: concept_id
     attributes:
-      label: Catalog ID (existing)
-      description: "Required. The catalog context used to generate the concept ID."
-      placeholder: "A-SF0JMV"
+      label: Concept ID
+      description: "Required. Stable identifier for the concept. Example: sdcdc:concept-voltage"
+      placeholder: "sdcdc:concept-voltage"
     validations:
       required: true
 
@@ -38,7 +39,7 @@ body:
     attributes:
       label: Concept definition
       description: "Required. Brief definition of the concept."
-      placeholder: "A measure of electric potential difference between two points."
+      placeholder: "Electric potential difference between two points."
     validations:
       required: true
 
@@ -56,24 +57,37 @@ body:
     attributes:
       label: Concept example (optional)
       description: "Optional. Example usage of the concept."
-      placeholder: "Nominal voltage of a distribution feeder."
+      placeholder: "Nominal feeder voltage."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: relationship_type
+    attributes:
+      label: Relationship type
+      description: "Select the hierarchy role of this concept."
+      options:
+        - None
+        - Child concept
+        - Parent concept
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: parent_concept_id
+    attributes:
+      label: Parent concept ID (required if child concept)
+      description: "If Relationship type = Child concept, provide the parent concept ID."
+      placeholder: "sdcdc:concept-electricity"
     validations:
       required: false
 
   - type: input
-    id: broader_concept_id
+    id: child_concept_ids
     attributes:
-      label: Broader concept ID (optional)
-      description: "Optional. Parent concept ID."
-      placeholder: "sdcdc:A-SF0JMV-concept-electricity"
-    validations:
-      required: false
-
-  - type: input
-    id: narrower_concept_ids
-    attributes:
-      label: Narrower concept IDs (optional)
-      description: "Optional. Child concept IDs, comma-separated."
-      placeholder: "sdcdc:A-SF0JMV-concept-phase-voltage, sdcdc:A-SF0JMV-concept-line-voltage"
+      label: Child concept IDs (optional if parent concept)
+      description: "If Relationship type = Parent concept, optionally provide child concept IDs, comma-separated."
+      placeholder: "sdcdc:concept-phase-voltage, sdcdc:concept-line-voltage"
     validations:
       required: false
