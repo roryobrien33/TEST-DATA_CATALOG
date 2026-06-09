@@ -2,7 +2,7 @@ from pathlib import Path
 import yaml
 
 from rdflib import Graph, URIRef, RDF
-from rdflib.namespace import DCAT, DCTERMS, SKOS
+from rdflib.namespace import DCAT, SKOS
 
 from simple_data_catalog_generator.create_metadata_table import create_metadata_table
 from simple_data_catalog_generator.analysis_functions import create_theme_word_cloud
@@ -138,33 +138,56 @@ def _build_deleted_dataset_table() -> str:
     return table_str
 
 
-def _build_concept_table(catalog_graph: Graph) -> str:
-    concept_rows = []
+def _build_theme_concept_table(catalog_graph: Graph, catalog: URIRef) -> str:
+    """
+    Build a table of concepts actually linked to datasets in this catalog.
+    """
+    concept_to_datasets = {}
 
-    for concept in catalog_graph.subjects(RDF.type, SKOS.Concept):
+    for dataset in catalog_graph.objects(catalog, DCAT.dataset):
+        dataset_id = get_id(dataset, catalog_graph)
+
+        for concept in catalog_graph.objects(dataset, DCAT.theme):
+            concept_to_datasets.setdefault(concept, set()).add(dataset_id)
+
+    if not concept_to_datasets:
+        return "No concepts linked to datasets in this catalog.\n\n"
+
+    rows = []
+    for concept, linked_dataset_ids in concept_to_datasets.items():
         concept_name = get_prefLabel(concept, catalog_graph)
+        if not concept_name or concept_name == "None":
+            concept_name = get_title(concept, catalog_graph)
+        if not concept_name or concept_name == "None":
+            concept_name = get_id(concept, catalog_graph)
+
         concept_id = get_id(concept, catalog_graph)
         concept_definition = get_definition(concept, catalog_graph)
-
         if not concept_definition or concept_definition == "None":
             concept_definition = "Not available"
 
         concept_link = create_local_link(concept, catalog_graph)
         concept_name_display = concept_link if concept_link else concept_name
 
-        concept_rows.append((concept_name.lower(), concept_name_display, concept_id, concept_definition))
+        rows.append(
+            (
+                concept_name.lower(),
+                concept_name_display,
+                concept_id,
+                len(linked_dataset_ids),
+                concept_definition,
+            )
+        )
 
-    if not concept_rows:
-        return "No concepts available.\n\n"
-
-    concept_rows.sort(key=lambda x: x[0])
+    rows.sort(key=lambda x: x[0])
 
     table_str = "|===\n"
-    table_str += "| Name | ID | Definition\n\n"
+    table_str += "| Concept | ID | Linked datasets | Definition\n\n"
 
-    for _, name_display, concept_id, concept_definition in concept_rows:
-        table_str += f"| {name_display}\n"
+    for _, concept_name_display, concept_id, linked_count, concept_definition in rows:
+        table_str += f"| {concept_name_display}\n"
         table_str += f"| `{concept_id}`\n"
+        table_str += f"| {linked_count}\n"
         table_str += f"| {concept_definition}\n\n"
 
     table_str += "|===\n\n"
@@ -205,19 +228,19 @@ def create_catalog_page(catalog_graph: Graph, output_dir: str = "modules/data-ca
         resource=catalog
     ) + "\n\n"
 
-    # Active dataset table
+    # Active datasets
     adoc_str += "== Datasets\n\n"
     adoc_str += _build_dataset_table(catalog_graph=catalog_graph, catalog=catalog)
 
-    # Deleted dataset lineage table
+    # Deleted datasets
     adoc_str += "== Deleted datasets\n\n"
     adoc_str += _build_deleted_dataset_table()
 
-    # Concept table
-    adoc_str += "== Concepts\n\n"
-    adoc_str += _build_concept_table(catalog_graph=catalog_graph)
+    # Themes (concepts linked to datasets in this catalog)
+    adoc_str += "== Themes\n\n"
+    adoc_str += _build_theme_concept_table(catalog_graph=catalog_graph, catalog=catalog)
 
-    # Datasets by Theme
+    # Datasets by Theme (word cloud)
     adoc_str += "== Datasets by Theme\n\n"
     create_theme_word_cloud(
         catalog_graph=catalog_graph,
@@ -237,3 +260,4 @@ if __name__ == "__main__":
     catalog_graph = Graph()
     catalog_graph.parse("data-catalog/data-catalog.ttl")
     create_catalog_page(catalog_graph=catalog_graph)
+``
