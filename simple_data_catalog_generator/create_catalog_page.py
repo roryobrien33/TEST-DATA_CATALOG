@@ -1,7 +1,7 @@
 from pathlib import Path
 import yaml
 
-from rdflib import Graph, URIRef, RDF
+from rdflib import Graph, URIRef, RDF, Namespace
 from rdflib.namespace import DCAT, SKOS
 
 from simple_data_catalog_generator.create_metadata_table import create_metadata_table
@@ -194,6 +194,82 @@ def _build_theme_concept_table(catalog_graph: Graph, catalog: URIRef) -> str:
     return table_str
 
 
+def _build_metric_table(catalog_graph: Graph) -> str:
+    rows = []
+
+    DQV = Namespace("http://www.w3.org/ns/dqv#")
+
+    for metric in catalog_graph.subjects(RDF.type, DQV.Metric):
+        metric_name = get_prefLabel(metric, catalog_graph)
+        if not metric_name or metric_name == "None":
+            metric_name = get_title(metric, catalog_graph)
+        if not metric_name or metric_name == "None":
+            metric_name = get_id(metric, catalog_graph)
+
+        metric_id = get_id(metric, catalog_graph)
+        metric_definition = get_definition(metric, catalog_graph)
+        if not metric_definition or metric_definition == "None":
+            metric_definition = "Not available"
+
+        metric_link = create_local_link(metric, catalog_graph)
+        metric_name_display = metric_link if metric_link else metric_name
+
+        rows.append((metric_name.lower(), metric_name_display, metric_id, metric_definition))
+
+    if not rows:
+        return "No metrics available.\n\n"
+
+    rows.sort(key=lambda x: x[0])
+
+    table_str = "|===\n"
+    table_str += "| Metric | ID | Definition\n\n"
+
+    for _, metric_name_display, metric_id, metric_definition in rows:
+        table_str += f"| {metric_name_display}\n"
+        table_str += f"| `{metric_id}`\n"
+        table_str += f"| {metric_definition}\n\n"
+
+    table_str += "|===\n\n"
+    return table_str
+
+
+def _build_policy_table(catalog_graph: Graph) -> str:
+    rows = []
+
+    ODRL = Namespace("http://www.w3.org/ns/odrl/2/")
+
+    for policy in catalog_graph.subjects(RDF.type, ODRL.Policy):
+        policy_name = get_title(policy, catalog_graph)
+        if not policy_name or policy_name == "None":
+            policy_name = get_id(policy, catalog_graph)
+
+        policy_id = get_id(policy, catalog_graph)
+        policy_description = get_description(policy, catalog_graph)
+        if not policy_description or policy_description == "None":
+            policy_description = "Not available"
+
+        policy_link = create_local_link(policy, catalog_graph)
+        policy_name_display = policy_link if policy_link else policy_name
+
+        rows.append((policy_name.lower(), policy_name_display, policy_id, policy_description))
+
+    if not rows:
+        return "No policies available.\n\n"
+
+    rows.sort(key=lambda x: x[0])
+
+    table_str = "|===\n"
+    table_str += "| Policy | ID | Description\n\n"
+
+    for _, policy_name_display, policy_id, policy_description in rows:
+        table_str += f"| {policy_name_display}\n"
+        table_str += f"| `{policy_id}`\n"
+        table_str += f"| {policy_description}\n\n"
+
+    table_str += "|===\n\n"
+    return table_str
+
+
 def create_catalog_page(catalog_graph: Graph, output_dir: str = "modules/data-catalog/pages/"):
     adoc_str = str()
 
@@ -239,6 +315,14 @@ def create_catalog_page(catalog_graph: Graph, output_dir: str = "modules/data-ca
     # Themes (concepts linked to datasets in this catalog)
     adoc_str += "== Themes\n\n"
     adoc_str += _build_theme_concept_table(catalog_graph=catalog_graph, catalog=catalog)
+
+    # Metrics
+    adoc_str += "== Metrics\n\n"
+    adoc_str += _build_metric_table(catalog_graph=catalog_graph)
+
+    # Policies
+    adoc_str += "== Policies\n\n"
+    adoc_str += _build_policy_table(catalog_graph=catalog_graph)
 
     # Datasets by Theme (word cloud)
     adoc_str += "== Datasets by Theme\n\n"
