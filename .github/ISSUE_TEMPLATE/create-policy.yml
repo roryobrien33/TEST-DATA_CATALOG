@@ -1,0 +1,41 @@
+name: Create policy
+description: Create an independent policy that can later be linked to datasets
+title: "[Create Policy] "
+labels: ["catalog-create-policy", "catalog-intake"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to create an independent policy.
+
+        Policies are independent entities and are not tied to a single dataset during creation.
+
+        If you leave the Policy ID blank, it will be auto-generated from the title.
+
+  - type: input
+    id: policy_id
+    attributes:
+      label: Policy ID (optional)
+      description: "Optional. Stable identifier for the policy. If left blank, one will be generated automatically."
+      placeholder: "plcy:open-information"
+    validations:
+      required: false
+
+  - type: input
+    id: policy_title
+    attributes:
+      label: Policy title
+      description: "Required. Human-readable policy title."
+      placeholder: "Open Information Policy"
+    validations:
+      required: true
+
+  - type: textarea
+    id: policy_description
+    attributes:
+      label: Policy description
+      description: "Required. Brief description of the policy."
+      placeholder: "Policy describing open information usage."
+    validations:
+      required: true
