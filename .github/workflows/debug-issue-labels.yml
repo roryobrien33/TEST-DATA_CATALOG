@@ -1,0 +1,30 @@
+name: Debug Issue Labels
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print issue data
+        run: |
+          echo "Issue title: ${{ github.event.issue.title }}"
+          echo "Labels JSON: ${{ toJson(github.event.issue.labels.*.name) }}"
+
+      - name: Comment labels on issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const labels = context.payload.issue.labels.map(l => l.name);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "Debug labels detected by workflow: " + (labels.length ? labels.join(", ") : "(none)")
+            });
