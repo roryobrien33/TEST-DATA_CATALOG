@@ -16,7 +16,9 @@ jobs:
       contains(github.event.issue.labels.*.name, 'catalog-add-dataset') ||
       contains(github.event.issue.labels.*.name, 'catalog-edit-dataset') ||
       contains(github.event.issue.labels.*.name, 'catalog-remove-dataset') ||
-      contains(github.event.issue.labels.*.name, 'catalog-create-concept')
+      contains(github.event.issue.labels.*.name, 'catalog-create-concept') ||
+      contains(github.event.issue.labels.*.name, 'catalog-create-policy') ||
+      contains(github.event.issue.labels.*.name, 'catalog-create-metric')
     runs-on: ubuntu-latest
 
     steps:
@@ -109,12 +111,31 @@ jobs:
                 .filter(Boolean);
             }
 
+            function normalizePolicyId(raw) {
+              const s = (raw || "").trim();
+              if (!s) return "";
+              if (s.startsWith("http://") || s.startsWith("https://")) return s;
+              if (s.includes(":")) return s;
+              return `plcy:${s}`;
+            }
+
+            function normalizeMetricId(raw) {
+              const s = (raw || "").trim();
+              if (!s) return "";
+              if (s.startsWith("http://") || s.startsWith("https://")) return s;
+              if (s.includes(":")) return s;
+              return `sdcdc:${s}`;
+            }
+
             const labels = (context.payload.issue.labels || []).map(l => l.name);
+
             const isCreateCatalog = labels.includes("catalog-create");
             const isAddDataset = labels.includes("catalog-add-dataset");
             const isEditDataset = labels.includes("catalog-edit-dataset");
             const isRemoveDataset = labels.includes("catalog-remove-dataset");
             const isCreateConcept = labels.includes("catalog-create-concept");
+            const isCreatePolicy = labels.includes("catalog-create-policy");
+            const isCreateMetric = labels.includes("catalog-create-metric");
 
             // Create catalog fields
             const catalog_name_A = getField("Catalog name");
@@ -156,6 +177,18 @@ jobs:
             const relationship_type_E = getField("Relationship type");
             const parent_concept_id_E = getField("Parent concept ID (required if child concept)");
             const child_concept_ids_E = getField("Child concept IDs (optional if parent concept)");
+
+            // Create policy fields
+            const policy_id_F = getField("Policy ID (optional)");
+            const policy_title_F = getField("Policy title");
+            const policy_description_F = getField("Policy description");
+
+            // Create metric fields
+            const metric_id_G = getField("Metric ID (optional)");
+            const metric_pref_label_G = getField("Metric preferred label");
+            const metric_definition_G = getField("Metric definition");
+            const metric_expected_data_type_G = getField("Expected data type (optional)");
+            const metric_dimension_G = getField("Metric dimension (optional)");
 
             const errors = [];
 
@@ -216,6 +249,16 @@ jobs:
               }
             }
 
+            if (isCreatePolicy) {
+              if (!policy_title_F) errors.push("Missing: Policy title");
+              if (!policy_description_F) errors.push("Missing: Policy description");
+            }
+
+            if (isCreateMetric) {
+              if (!metric_pref_label_G) errors.push("Missing: Metric preferred label");
+              if (!metric_definition_G) errors.push("Missing: Metric definition");
+            }
+
             let generated_catalog_id = "";
             if (isCreateCatalog && catalog_name_A) {
               const base = normalizeIdBase(catalog_name_A);
@@ -229,15 +272,32 @@ jobs:
                 : `sdcdc:concept-${slugify(concept_pref_label_E)}`;
             }
 
+            let generated_policy_id = "";
+            if (isCreatePolicy && policy_title_F) {
+              generated_policy_id = policy_id_F
+                ? normalizePolicyId(policy_id_F)
+                : `plcy:${slugify(policy_title_F)}`;
+            }
+
+            let generated_metric_id = "";
+            if (isCreateMetric && metric_pref_label_G) {
+              generated_metric_id = metric_id_G
+                ? normalizeMetricId(metric_id_G)
+                : `sdcdc:metric-${slugify(metric_pref_label_G)}`;
+            }
+
             const normalized_parent_concept_id_E = normalizeConceptId(parent_concept_id_E);
             const normalized_child_concept_ids_E = parseConceptIdCsv(child_concept_ids_E);
 
             core.setOutput("errors", JSON.stringify(errors));
+
             core.setOutput("is_create_catalog", String(isCreateCatalog));
             core.setOutput("is_add_dataset", String(isAddDataset));
             core.setOutput("is_edit_dataset", String(isEditDataset));
             core.setOutput("is_remove_dataset", String(isRemoveDataset));
             core.setOutput("is_create_concept", String(isCreateConcept));
+            core.setOutput("is_create_policy", String(isCreatePolicy));
+            core.setOutput("is_create_metric", String(isCreateMetric));
 
             core.setOutput("catalog_name_A", catalog_name_A);
             core.setOutput("catalog_description_A", catalog_description_A);
@@ -275,6 +335,16 @@ jobs:
             core.setOutput("relationship_type_E", relationship_type_E);
             core.setOutput("parent_concept_id_E", normalized_parent_concept_id_E);
             core.setOutput("child_concept_ids_E", JSON.stringify(normalized_child_concept_ids_E));
+
+            core.setOutput("policy_id_F", generated_policy_id);
+            core.setOutput("policy_title_F", policy_title_F);
+            core.setOutput("policy_description_F", policy_description_F);
+
+            core.setOutput("metric_id_G", generated_metric_id);
+            core.setOutput("metric_pref_label_G", metric_pref_label_G);
+            core.setOutput("metric_definition_G", metric_definition_G);
+            core.setOutput("metric_expected_data_type_G", metric_expected_data_type_G);
+            core.setOutput("metric_dimension_G", metric_dimension_G);
 
       - name: Comment and stop on validation errors
         if: ${{ fromJSON(steps.parse.outputs.errors)[0] != null }}
@@ -316,6 +386,30 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.payload.issue.number,
               body: "Concept ID: `${{ steps.parse.outputs.concept_id_E }}`"
+            });
+
+      - name: Comment policy ID
+        if: ${{ steps.parse.outputs.is_create_policy == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "Policy ID: `${{ steps.parse.outputs.policy_id_F }}`"
+            });
+
+      - name: Comment metric ID
+        if: ${{ steps.parse.outputs.is_create_metric == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "Metric ID: `${{ steps.parse.outputs.metric_id_G }}`"
             });
 
       - name: Create catalog YAML
@@ -544,13 +638,13 @@ jobs:
               target["description"] = dataset_description
 
           if dataset_use_case_raw:
-              dataset_use_case = norm_useCase(dataset_use_case_raw)
+              dataset_use_case = norm_use_case(dataset_use_case_raw)
               allowed = catalog.get("use_cases", []) or []
               if dataset_use_case not in allowed:
-                  raise SystemExit(
-                      f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
-                      f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
-                  )
+                raise SystemExit(
+                  f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
+                  f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
+                )
               target["use_case"] = dataset_use_case
 
           if location:
@@ -736,6 +830,122 @@ jobs:
           PARENT_CONCEPT_ID: ${{ steps.parse.outputs.parent_concept_id_E }}
           CHILD_CONCEPT_IDS: ${{ steps.parse.outputs.child_concept_ids_E }}
 
+      - name: Create policy YAML
+        if: ${{ steps.parse.outputs.is_create_policy == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data-catalog/policies
+
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+          import yaml
+
+          policy_id = os.environ["POLICY_ID"].strip()
+          policy_title = os.environ["POLICY_TITLE"].strip()
+          policy_description = os.environ["POLICY_DESCRIPTION"].strip()
+
+          def file_stem_from_id(value: str) -> str:
+              s = value.strip()
+              if ":" in s:
+                  s = s.split(":", 1)[1]
+              if "/" in s:
+                  s = s.rstrip("/").split("/")[-1]
+              if "#" in s:
+                  s = s.split("#")[-1]
+              s = re.sub(r"[^A-Za-z0-9._-]", "-", s)
+              return s
+
+          file_stem = file_stem_from_id(policy_id)
+          p = pathlib.Path(f"data-catalog/policies/{file_stem}.yaml")
+          p.parent.mkdir(parents=True, exist_ok=True)
+
+          if p.exists():
+              raise SystemExit(f"Policy file already exists: {p}")
+
+          doc = {
+              "policy": {
+                  "uid": policy_id,
+                  "title": policy_title,
+                  "description": policy_description,
+              }
+          }
+
+          p.write_text(
+              yaml.safe_dump(doc, sort_keys=False, allow_unicode=True),
+              encoding="utf-8"
+          )
+          print(f"Wrote policy file: {p}")
+          PY
+        env:
+          POLICY_ID: ${{ steps.parse.outputs.policy_id_F }}
+          POLICY_TITLE: ${{ steps.parse.outputs.policy_title_F }}
+          POLICY_DESCRIPTION: ${{ steps.parse.outputs.policy_description_F }}
+
+      - name: Create metric YAML
+        if: ${{ steps.parse.outputs.is_create_metric == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data-catalog/metrics
+
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+          import yaml
+
+          metric_id = os.environ["METRIC_ID"].strip()
+          metric_pref_label = os.environ["METRIC_PREF_LABEL"].strip()
+          metric_definition = os.environ["METRIC_DEFINITION"].strip()
+          metric_expected_data_type = os.environ.get("METRIC_EXPECTED_DATA_TYPE", "").strip()
+          metric_dimension = os.environ.get("METRIC_DIMENSION", "").strip()
+
+          def file_stem_from_id(value: str) -> str:
+              s = value.strip()
+              if ":" in s:
+                  s = s.split(":", 1)[1]
+              if "/" in s:
+                  s = s.rstrip("/").split("/")[-1]
+              if "#" in s:
+                  s = s.split("#")[-1]
+              s = re.sub(r"[^A-Za-z0-9._-]", "-", s)
+              return s
+
+          file_stem = file_stem_from_id(metric_id)
+          p = pathlib.Path(f"data-catalog/metrics/{file_stem}.yaml")
+          p.parent.mkdir(parents=True, exist_ok=True)
+
+          if p.exists():
+              raise SystemExit(f"Metric file already exists: {p}")
+
+          doc = {
+              "metric": {
+                  "identifier": metric_id,
+                  "prefLabel": metric_pref_label,
+                  "definition": metric_definition,
+              }
+          }
+
+          if metric_expected_data_type:
+              doc["metric"]["expectedDataType"] = metric_expected_data_type
+
+          if metric_dimension:
+              doc["metric"]["inDimension"] = metric_dimension
+
+          p.write_text(
+              yaml.safe_dump(doc, sort_keys=False, allow_unicode=True),
+              encoding="utf-8"
+          )
+          print(f"Wrote metric file: {p}")
+          PY
+        env:
+          METRIC_ID: ${{ steps.parse.outputs.metric_id_G }}
+          METRIC_PREF_LABEL: ${{ steps.parse.outputs.metric_pref_label_G }}
+          METRIC_DEFINITION: ${{ steps.parse.outputs.metric_definition_G }}
+          METRIC_EXPECTED_DATA_TYPE: ${{ steps.parse.outputs.metric_expected_data_type_G }}
+          METRIC_DIMENSION: ${{ steps.parse.outputs.metric_dimension_G }}
+
       - name: Show pending changes
         if: ${{ success() }}
         run: |
@@ -792,6 +1002,30 @@ jobs:
               body: "Concept creation failed. Check the Actions logs for the exact reason."
             });
 
+      - name: Comment create policy failure details
+        if: ${{ failure() && steps.parse.outputs.is_create_policy == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "Policy creation failed. Check the Actions logs for the exact reason."
+            });
+
+      - name: Comment create metric failure details
+        if: ${{ failure() && steps.parse.outputs.is_create_metric == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "Metric creation failed. Check the Actions logs for the exact reason."
+            });
+
       - name: Create Pull Request
         if: ${{ success() }}
         uses: peter-evans/create-pull-request@v7
@@ -800,6 +1034,8 @@ jobs:
           add-paths: |
             data-catalog/user-catalogs/*.yaml
             data-catalog/concepts/*.yaml
+            data-catalog/policies/*.yaml
+            data-catalog/metrics/*.yaml
           commit-message: "Catalog intake: issue #${{ github.event.issue.number }}"
           branch: "catalog-intake/${{ github.event.issue.number }}"
           title: "Catalog intake: issue #${{ github.event.issue.number }}"
@@ -809,6 +1045,8 @@ jobs:
             - Labels: `${{ join(github.event.issue.labels.*.name, ', ') }}`
             - Generated Catalog ID (if applicable): `${{ steps.parse.outputs.generated_catalog_id }}`
             - Concept ID (if applicable): `${{ steps.parse.outputs.concept_id_E }}`
+            - Policy ID (if applicable): `${{ steps.parse.outputs.policy_id_F }}`
+            - Metric ID (if applicable): `${{ steps.parse.outputs.metric_id_G }}`
 
             After merge to `main`, the Pages deployment workflow will rebuild and publish the static catalog site.
           labels: "catalog-intake-pr"
