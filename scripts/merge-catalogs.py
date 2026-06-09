@@ -97,9 +97,9 @@ def load_independent_concepts() -> dict:
       data-catalog/concepts/*.yaml
       data-catalog/concepts/*.yml
 
-    Concept hierarchy fields (broader/narrower) are kept in source YAML and
-    rendered from there later; they are not merged into the LinkML container
-    because the current schema does not formally define them.
+    Note:
+    - broader/narrower are intentionally kept in source YAML and rendered
+      from source later, because the current schema does not formally define them.
     """
     concept_files = sorted(glob.glob("data-catalog/concepts/*.yaml")) + sorted(
         glob.glob("data-catalog/concepts/*.yml")
@@ -151,6 +151,112 @@ def load_independent_concepts() -> dict:
     return {"concepts_map": concepts_map, "label_to_id": label_to_id}
 
 
+def load_independent_metrics() -> dict:
+    """
+    Load independent metric definitions from:
+      data-catalog/metrics/*.yaml
+      data-catalog/metrics/*.yml
+    """
+    metric_files = sorted(glob.glob("data-catalog/metrics/*.yaml")) + sorted(
+        glob.glob("data-catalog/metrics/*.yml")
+    )
+
+    metrics_map = {}
+
+    for fp in metric_files:
+        doc = load_yaml(fp)
+        if not isinstance(doc, dict):
+            die(f"{fp} must be a YAML mapping/object.")
+
+        metric = doc.get("metric", {})
+        if metric is None:
+            metric = {}
+        if not isinstance(metric, dict):
+            die(f"{fp}: 'metric' must be a mapping/object.")
+
+        raw_id = first_present(metric, ["identifier", "id"], None)
+        if not raw_id:
+            raw_id = f"metric-{Path(fp).stem}"
+
+        mid = ensure_curie(str(raw_id))
+        pref_label = first_present(metric, ["prefLabel", "label", "title", "name"], None)
+        definition = first_present(metric, ["definition"], None)
+        expected_data_type = first_present(metric, ["expectedDataType"], None)
+        in_dimension = first_present(metric, ["inDimension", "dimension"], None)
+
+        metric_obj = {
+            "identifier": mid,
+        }
+
+        if pref_label:
+            metric_obj["prefLabel"] = str(pref_label)
+
+        if definition:
+            metric_obj["definition"] = str(definition)
+
+        if expected_data_type:
+            metric_obj["expectedDataType"] = str(expected_data_type)
+
+        if in_dimension:
+            metric_obj["inDimension"] = str(in_dimension)
+
+        metrics_map[mid] = metric_obj
+
+    return {"metrics_map": metrics_map}
+
+
+def load_independent_policies() -> dict:
+    """
+    Load independent policy definitions from:
+      data-catalog/policies/*.yaml
+      data-catalog/policies/*.yml
+
+    Expected shape:
+      policy:
+        uid: plcy:open-information
+        title: Open Information Policy
+        description: ...
+    """
+    policy_files = sorted(glob.glob("data-catalog/policies/*.yaml")) + sorted(
+        glob.glob("data-catalog/policies/*.yml")
+    )
+
+    policies_map = {}
+
+    for fp in policy_files:
+        doc = load_yaml(fp)
+        if not isinstance(doc, dict):
+            die(f"{fp} must be a YAML mapping/object.")
+
+        policy = doc.get("policy", {})
+        if policy is None:
+            policy = {}
+        if not isinstance(policy, dict):
+            die(f"{fp}: 'policy' must be a mapping/object.")
+
+        raw_id = first_present(policy, ["uid", "identifier", "id"], None)
+        if not raw_id:
+            raw_id = f"policy-{Path(fp).stem}"
+
+        pid = ensure_curie(str(raw_id), default_prefix="plcy")
+        title = first_present(policy, ["title", "name"], None)
+        description = first_present(policy, ["description"], None)
+
+        policy_obj = {
+            "uid": pid,
+        }
+
+        if title:
+            policy_obj["title"] = str(title)
+
+        if description:
+            policy_obj["description"] = str(description)
+
+        policies_map[pid] = policy_obj
+
+    return {"policies_map": policies_map}
+
+
 def normalize_dataset(
     ds: dict,
     source_catalog_stem: str,
@@ -174,8 +280,9 @@ def normalize_dataset(
 
     desc = first_present(ds, ["description"], None)
     if desc:
-      out["description"] = str(desc)
+        out["description"] = str(desc)
 
+    # Preserve source catalog separation inside merged catalog
     out["inSeries"] = series_id
 
     publisher = ds.get("publisher")
@@ -186,6 +293,7 @@ def normalize_dataset(
     elif isinstance(publisher, str) and publisher.strip():
         out["publisher"] = {"name": publisher.strip()}
 
+    # Concepts / themes
     labels = []
     labels += extract_list(ds.get("concepts"))
     labels += extract_list(ds.get("tags"))
@@ -218,6 +326,7 @@ def normalize_dataset(
         theme_ids = []
 
         for lbl in ordered_labels:
+            # explicit CURIE / IRI
             if lbl.startswith("http://") or lbl.startswith("https://") or ":" in lbl:
                 cid = ensure_curie(lbl)
                 theme_ids.append(cid)
@@ -229,11 +338,13 @@ def normalize_dataset(
                     }
                 continue
 
+            # match by label
             matched_cid = label_to_id.get(lbl.strip().lower())
             if matched_cid:
                 theme_ids.append(matched_cid)
                 continue
 
+            # fallback auto concept from label
             cid = concept_id_from_label(lbl)
             theme_ids.append(cid)
             if cid not in concepts_map:
@@ -243,6 +354,11 @@ def normalize_dataset(
                 }
 
         out["theme"] = theme_ids
+
+    # Policy linkage (optional)
+    has_policy = first_present(ds, ["hasPolicy"], None)
+    if has_policy:
+        out["hasPolicy"] = ensure_curie(str(has_policy), default_prefix="plcy")
 
     return out
 
@@ -261,6 +377,12 @@ def main() -> None:
     loaded_concepts = load_independent_concepts()
     concepts_map = loaded_concepts["concepts_map"]
     label_to_id = loaded_concepts["label_to_id"]
+
+    loaded_metrics = load_independent_metrics()
+    metrics_map = loaded_metrics["metrics_map"]
+
+    loaded_policies = load_independent_policies()
+    policies_map = loaded_policies["policies_map"]
 
     for fp in files:
         doc = load_yaml(fp)
@@ -319,6 +441,18 @@ def main() -> None:
             key=lambda x: x.get("prefLabel", "").lower()
         )
 
+    if metrics_map:
+        container["metrics"] = sorted(
+            metrics_map.values(),
+            key=lambda x: x.get("prefLabel", "").lower()
+        )
+
+    if policies_map:
+        container["policies"] = sorted(
+            policies_map.values(),
+            key=lambda x: x.get("title", "").lower()
+        )
+
     out = Path("data-catalog/data-catalog.yaml")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
@@ -328,7 +462,10 @@ def main() -> None:
 
     print(
         f"OK: merged {len(files)} user catalog file(s), "
-        f"{len(all_datasets)} dataset(s), and {len(concepts_map)} concept(s) into {out}"
+        f"{len(all_datasets)} dataset(s), "
+        f"{len(concepts_map)} concept(s), "
+        f"{len(metrics_map)} metric(s), and "
+        f"{len(policies_map)} policy/policies into {out}"
     )
 
 
