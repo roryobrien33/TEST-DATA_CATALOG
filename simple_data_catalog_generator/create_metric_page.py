@@ -2,19 +2,24 @@ from pathlib import Path
 import yaml
 
 from rdflib import Graph, URIRef, RDF
-from rdflib.namespace import DCTERMS, DCAT
+from rdflib.namespace import DCTERMS
 from rdflib import Namespace
 
 from simple_data_catalog_generator.page_creation_functions import (
     write_file,
     get_id,
-    create_local_link,
+    get_title,
+    get_prefLabel,
+    get_definition,
 )
 
 DQV = Namespace("http://www.w3.org/ns/dqv#")
 
 
 def _load_source_metric_yaml(metric: URIRef, catalog_graph: Graph):
+    """
+    Load the source metric YAML file corresponding to this metric.
+    """
     metric_id = get_id(metric, catalog_graph)
 
     candidate_names = [metric_id]
@@ -44,26 +49,29 @@ def create_metric_page(metric: URIRef, catalog_graph: Graph):
     source_metric = source_doc.get("metric", {}) or {}
 
     metric_id = get_id(metric, catalog_graph)
-    metric_name = str(catalog_graph.value(metric, DCTERMS.title) or "").strip()
-    if not metric_name:
-        metric_name = str(catalog_graph.value(metric, Namespace("http://www.w3.org/2004/02/skos/core#").prefLabel) or "").strip()
-    if not metric_name:
+
+    metric_name = get_prefLabel(metric, catalog_graph)
+    if not metric_name or metric_name == "None":
+        metric_name = get_title(metric, catalog_graph)
+    if not metric_name or metric_name == "None":
         metric_name = metric_id
 
-    metric_definition = str(
-        catalog_graph.value(metric, Namespace("http://www.w3.org/2004/02/skos/core#").definition) or ""
-    ).strip()
+    metric_definition = get_definition(metric, catalog_graph)
+    if not metric_definition or metric_definition == "None":
+        metric_definition = str(source_metric.get("definition", "")).strip()
 
     expected_data_type = str(source_metric.get("expectedDataType", "")).strip()
     in_dimension = str(source_metric.get("inDimension", "")).strip()
 
+    # Title
     adoc_str += "= " + metric_name + "\n\n"
 
+    # Metric details
     adoc_str += "== Metric Details\n\n"
     adoc_str += f"* **Name:** {metric_name}\n"
     adoc_str += f"* **ID:** `{metric_id}`\n"
 
-    if metric_definition:
+    if metric_definition and metric_definition != "None":
         adoc_str += f"* **Definition:** {metric_definition}\n"
     else:
         adoc_str += "* **Definition:** Not available\n"
@@ -80,6 +88,7 @@ def create_metric_page(metric: URIRef, catalog_graph: Graph):
 
     adoc_str += "\n"
 
+    # Placeholder linkage section
     adoc_str += "== Linked datasets\n\n"
     adoc_str += "Metric linkage will be shown through data quality measurements.\n\n"
 
