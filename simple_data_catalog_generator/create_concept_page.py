@@ -9,6 +9,7 @@ from simple_data_catalog_generator.page_creation_functions import (
     get_prefLabel,
     get_definition,
     get_id,
+    get_title,
     create_local_link,
 )
 
@@ -56,6 +57,36 @@ def _concept_link_or_text(catalog_graph: Graph, concept_identifier: str):
     return f"`{concept_identifier}`"
 
 
+def _datasets_with_theme_table(concept: URIRef, catalog_graph: Graph) -> str:
+    rows = []
+
+    for dataset in catalog_graph.subjects(DCAT.theme, concept):
+        dataset_name = get_title(dataset, catalog_graph)
+        if not dataset_name or dataset_name == "None":
+            dataset_name = get_id(dataset, catalog_graph)
+
+        dataset_id = get_id(dataset, catalog_graph)
+        dataset_link = create_local_link(dataset, catalog_graph)
+        dataset_name_display = dataset_link if dataset_link else dataset_name
+
+        rows.append((dataset_name.lower(), dataset_name_display, dataset_id))
+
+    if not rows:
+        return "No datasets linked to this concept.\n\n"
+
+    rows.sort(key=lambda x: x[0])
+
+    table_str = "|===\n"
+    table_str += "| Dataset | ID\n\n"
+
+    for _, dataset_name_display, dataset_id in rows:
+        table_str += f"| {dataset_name_display}\n"
+        table_str += f"| `{dataset_id}`\n\n"
+
+    table_str += "|===\n\n"
+    return table_str
+
+
 def create_concept_page(concept: URIRef, catalog_graph: Graph):
     adoc_str = str()
 
@@ -70,6 +101,7 @@ def create_concept_page(concept: URIRef, catalog_graph: Graph):
     concept_example = str(source_concept.get("example", "")).strip()
     broader_id = str(source_concept.get("broader", "")).strip()
     narrower_ids = source_concept.get("narrower", [])
+
     if narrower_ids is None:
         narrower_ids = []
     if isinstance(narrower_ids, str):
@@ -77,15 +109,10 @@ def create_concept_page(concept: URIRef, catalog_graph: Graph):
     if not isinstance(narrower_ids, list):
         narrower_ids = []
 
-    # Datasets linked to this concept via dcat:theme
-    themed_datasets = []
-    for dataset in catalog_graph.subjects(DCAT.theme, concept):
-        themed_datasets.append(create_local_link(dataset, catalog_graph))
-
     # Title
     adoc_str += "= " + concept_name + "\n\n"
 
-    # Details
+    # Concept Details
     adoc_str += "== Concept Details\n\n"
     adoc_str += f"* **Name:** {concept_name}\n"
     adoc_str += f"* **ID:** `{concept_id}`\n"
@@ -121,14 +148,14 @@ def create_concept_page(concept: URIRef, catalog_graph: Graph):
 
     adoc_str += "\n"
 
-    # Alternative Labels section
+    # Alternative labels
     adoc_str += "== Alternative labels\n\n"
     if concept_alt_label:
         adoc_str += f"* {concept_alt_label}\n\n"
     else:
         adoc_str += "No alternative labels.\n\n"
 
-    # Concept Hierarchy section
+    # Concept hierarchy
     adoc_str += "== Concept hierarchy\n\n"
 
     if broader_id:
@@ -150,16 +177,13 @@ def create_concept_page(concept: URIRef, catalog_graph: Graph):
 
     # Datasets with this theme
     adoc_str += "== Datasets with this theme\n\n"
-    if themed_datasets:
-        adoc_str += "\n".join(themed_datasets) + "\n\n"
-    else:
-        adoc_str += "No datasets linked to this concept.\n\n"
+    adoc_str += _datasets_with_theme_table(concept=concept, catalog_graph=catalog_graph)
 
     write_file(
         adoc_str=adoc_str,
         resource=concept,
-        output_dir='modules/concept/pages/',
-        catalog_graph=catalog_graph
+        output_dir="modules/concept/pages/",
+        catalog_graph=catalog_graph,
     )
 
     return 1
