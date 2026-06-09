@@ -1,0 +1,59 @@
+name: Create metric
+description: Create an independent metric that can later be used in quality measurements
+title: "[Create Metric] "
+labels: ["catalog-create-metric", "catalog-intake"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to create an independent metric.
+
+        Metrics are independent entities and are not tied to a dataset during creation.
+
+        If you leave the Metric ID blank, it will be auto-generated from the preferred label.
+
+  - type: input
+    id: metric_id
+    attributes:
+      label: Metric ID (optional)
+      description: "Optional. Stable identifier for the metric. If left blank, one will be generated automatically."
+      placeholder: "sdcdc:metric-voltage-quality"
+    validations:
+      required: false
+
+  - type: input
+    id: metric_pref_label
+    attributes:
+      label: Metric preferred label
+      description: "Required. Human-readable metric name."
+      placeholder: "Voltage quality"
+    validations:
+      required: true
+
+  - type: textarea
+    id: metric_definition
+    attributes:
+      label: Metric definition
+      description: "Required. Brief definition of the metric."
+      placeholder: "Measures compliance of voltage values with expected quality thresholds."
+    validations:
+      required: true
+
+  - type: input
+    id: metric_expected_data_type
+    attributes:
+      label: Expected data type (optional)
+      description: "Optional. Example: xsd:boolean, xsd:double"
+      placeholder: "xsd:double"
+    validations:
+      required: false
+
+  - type: input
+    id: metric_dimension
+    attributes:
+      label: Metric dimension (optional)
+      description: "Optional. Example: Accuracy, Completeness, Consistency"
+      placeholder: "Accuracy"
+    validations:
+      required: false
