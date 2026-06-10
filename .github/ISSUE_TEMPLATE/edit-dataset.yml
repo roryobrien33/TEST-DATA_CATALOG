@@ -10,11 +10,11 @@ body:
         Use this form to edit an existing dataset in a catalog.
 
         Fill in:
-        - the exact **Catalog ID**
-        - the exact **Dataset identifier**
+        - the exact Catalog ID
+        - the exact Dataset identifier
         - at least one field to update
 
-        If linking concepts, use existing **Concept IDs** (comma-separated).
+        If linking concepts, policies, or metrics, use existing IDs (comma-separated).
 
   - type: input
     id: catalog_id_existing
@@ -76,6 +76,24 @@ body:
       label: Concept IDs (optional, comma-separated)
       description: "Optional. Replace with existing concept IDs, comma-separated."
       placeholder: "sdcdc:concept-voltage, sdcdc:concept-harmonics"
+    validations:
+      required: false
+
+  - type: input
+    id: policy_ids
+    attributes:
+      label: Policy IDs (optional, comma-separated)
+      description: "Optional. Replace with existing policy IDs, comma-separated."
+      placeholder: "plcy:open-information-policy"
+    validations:
+      required: false
+
+  - type: input
+    id: metric_ids
+    attributes:
+      label: Metric IDs (optional, comma-separated)
+      description: "Optional. Replace with existing metric IDs, comma-separated."
+      placeholder: "sdcdc:metric-voltage-quality"
     validations:
       required: false
 
