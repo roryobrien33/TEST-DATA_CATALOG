@@ -1,10 +1,7 @@
 from pathlib import Path
 import yaml
 
-from rdflib import Graph, URIRef, RDF
-from rdflib.namespace import DCTERMS
-from rdflib import Namespace
-
+from rdflib import Graph, URIRef
 from simple_data_catalog_generator.page_creation_functions import (
     write_file,
     get_id,
@@ -13,40 +10,56 @@ from simple_data_catalog_generator.page_creation_functions import (
     get_definition,
 )
 
-DQV = Namespace("http://www.w3.org/ns/dqv#")
+def _datasets_for_metric(metric_id: str):
+    rows = []
+
+    catalog_files = sorted(Path("data-catalog/user-catalogs").glob("*.yaml")) + sorted(
+        Path("data-catalog/user-catalogs").glob("*.yml")
+    )
+
+    for yf in catalog_files:
+        doc = yaml.safe_load(yf.read_text(encoding="utf-8")) or {}
+        datasets = doc.get("datasets", [])
+        if not isinstance(datasets, list):
+            continue
+
+        for ds in datasets:
+            if not isinstance(ds, dict):
+                continue
+            metric_ids = ds.get("metrics", [])
+            if isinstance(metric_ids, str):
+                metric_ids = [metric_ids]
+            if not isinstance(metric_ids, list):
+                continue
+
+            if metric_id in [str(x).strip() for x in metric_ids]:
+                ds_name = str(ds.get("title", "")).strip() or str(ds.get("id", "")).strip()
+                ds_id = str(ds.get("id") or ds.get("identifier") or "").strip()
+                rows.append((ds_name.lower(), ds_name, ds_id))
+
+    rows.sort(key=lambda x: x[0])
+    return rows
 
 
-def _load_source_metric_yaml(metric: URIRef, catalog_graph: Graph):
-    """
-    Load the source metric YAML file corresponding to this metric.
-    """
-    metric_id = get_id(metric, catalog_graph)
+def _linked_datasets_table(metric_id: str) -> str:
+    rows = _datasets_for_metric(metric_id)
 
-    candidate_names = [metric_id]
-    if ":" in metric_id:
-        candidate_names.append(metric_id.split(":", 1)[1])
-    if "/" in metric_id:
-        candidate_names.append(metric_id.rstrip("/").split("/")[-1])
-    if "#" in metric_id:
-        candidate_names.append(metric_id.split("#")[-1])
+    if not rows:
+        return "No datasets linked to this metric.\n\n"
 
-    seen = set()
-    candidate_names = [x for x in candidate_names if not (x in seen or seen.add(x))]
+    table_str = "|===\n"
+    table_str += "| Dataset | ID\n\n"
 
-    for name in candidate_names:
-        for ext in (".yaml", ".yml"):
-            p = Path(f"data-catalog/metrics/{name}{ext}")
-            if p.exists():
-                return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    for _, ds_name, ds_id in rows:
+        table_str += f"| {ds_name}\n"
+        table_str += f"| `{ds_id}`\n\n"
 
-    return {}
+    table_str += "|===\n\n"
+    return table_str
 
 
 def create_metric_page(metric: URIRef, catalog_graph: Graph):
     adoc_str = str()
-
-    source_doc = _load_source_metric_yaml(metric, catalog_graph)
-    source_metric = source_doc.get("metric", {}) or {}
 
     metric_id = get_id(metric, catalog_graph)
 
@@ -57,16 +70,9 @@ def create_metric_page(metric: URIRef, catalog_graph: Graph):
         metric_name = metric_id
 
     metric_definition = get_definition(metric, catalog_graph)
-    if not metric_definition or metric_definition == "None":
-        metric_definition = str(source_metric.get("definition", "")).strip()
 
-    expected_data_type = str(source_metric.get("expectedDataType", "")).strip()
-    in_dimension = str(source_metric.get("inDimension", "")).strip()
-
-    # Title
     adoc_str += "= " + metric_name + "\n\n"
 
-    # Metric details
     adoc_str += "== Metric Details\n\n"
     adoc_str += f"* **Name:** {metric_name}\n"
     adoc_str += f"* **ID:** `{metric_id}`\n"
@@ -76,21 +82,10 @@ def create_metric_page(metric: URIRef, catalog_graph: Graph):
     else:
         adoc_str += "* **Definition:** Not available\n"
 
-    if expected_data_type:
-        adoc_str += f"* **Expected data type:** {expected_data_type}\n"
-    else:
-        adoc_str += "* **Expected data type:** Not available\n"
-
-    if in_dimension:
-        adoc_str += f"* **Metric dimension:** {in_dimension}\n"
-    else:
-        adoc_str += "* **Metric dimension:** Not available\n"
-
     adoc_str += "\n"
 
-    # Placeholder linkage section
     adoc_str += "== Linked datasets\n\n"
-    adoc_str += "Metric linkage will be shown through data quality measurements.\n\n"
+    adoc_str += _linked_datasets_table(metric_id)
 
     write_file(
         adoc_str=adoc_str,
