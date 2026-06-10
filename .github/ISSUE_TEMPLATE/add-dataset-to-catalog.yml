@@ -9,7 +9,7 @@ body:
       value: |
         Use this form to add a dataset to an existing catalog.
 
-        If linking concepts, use existing **Concept IDs** (comma-separated).
+        If linking concepts, policies, or metrics, use existing IDs (comma-separated).
 
   - type: input
     id: catalog_id_existing
@@ -71,6 +71,24 @@ body:
       label: Concept IDs (optional, comma-separated)
       description: "Optional. Use existing concept IDs, comma-separated."
       placeholder: "sdcdc:concept-voltage, sdcdc:concept-harmonics"
+    validations:
+      required: false
+
+  - type: input
+    id: policy_ids
+    attributes:
+      label: Policy IDs (optional, comma-separated)
+      description: "Optional. Use existing policy IDs, comma-separated."
+      placeholder: "plcy:open-information-policy"
+    validations:
+      required: false
+
+  - type: input
+    id: metric_ids
+    attributes:
+      label: Metric IDs (optional, comma-separated)
+      description: "Optional. Use existing metric IDs, comma-separated."
+      placeholder: "sdcdc:metric-voltage-quality"
     validations:
       required: false
 
