@@ -14,3 +14,12 @@ datasets:
   concepts:
   - sdcdc:concept-voltage
   - sdcdc:concept-harmonics
+- id: sdcdc:X-R3PWBI-W
+  title: W
+  description: W
+  use_case: a-a
+  location: Dublin, Ireland
+  policies:
+  - yy
+  metrics:
+  - data-catalogmetric-bb
