@@ -1,10 +1,7 @@
 from pathlib import Path
 import yaml
 
-from rdflib import Graph, URIRef, RDF
-from rdflib.namespace import DCTERMS
-from rdflib import Namespace
-
+from rdflib import Graph, URIRef
 from simple_data_catalog_generator.page_creation_functions import (
     write_file,
     get_id,
@@ -12,57 +9,67 @@ from simple_data_catalog_generator.page_creation_functions import (
     get_description,
 )
 
-ODRL = Namespace("http://www.w3.org/ns/odrl/2/")
+def _datasets_for_policy(policy_id: str):
+    rows = []
+
+    catalog_files = sorted(Path("data-catalog/user-catalogs").glob("*.yaml")) + sorted(
+        Path("data-catalog/user-catalogs").glob("*.yml")
+    )
+
+    for yf in catalog_files:
+        doc = yaml.safe_load(yf.read_text(encoding="utf-8")) or {}
+        datasets = doc.get("datasets", [])
+        if not isinstance(datasets, list):
+            continue
+
+        for ds in datasets:
+            if not isinstance(ds, dict):
+                continue
+            policy_ids = ds.get("policies", [])
+            if isinstance(policy_ids, str):
+                policy_ids = [policy_ids]
+            if not isinstance(policy_ids, list):
+                continue
+
+            if policy_id in [str(x).strip() for x in policy_ids]:
+                ds_name = str(ds.get("title", "")).strip() or str(ds.get("id", "")).strip()
+                ds_id = str(ds.get("id") or ds.get("identifier") or "").strip()
+                rows.append((ds_name.lower(), ds_name, ds_id))
+
+    rows.sort(key=lambda x: x[0])
+    return rows
 
 
-def _load_source_policy_yaml(policy: URIRef, catalog_graph: Graph):
-    """
-    Load the source policy YAML file corresponding to this policy.
-    """
-    policy_id = get_id(policy, catalog_graph)
+def _linked_datasets_table(policy_id: str) -> str:
+    rows = _datasets_for_policy(policy_id)
 
-    candidate_names = [policy_id]
-    if ":" in policy_id:
-        candidate_names.append(policy_id.split(":", 1)[1])
-    if "/" in policy_id:
-        candidate_names.append(policy_id.rstrip("/").split("/")[-1])
-    if "#" in policy_id:
-        candidate_names.append(policy_id.split("#")[-1])
+    if not rows:
+        return "No datasets linked to this policy.\n\n"
 
-    seen = set()
-    candidate_names = [x for x in candidate_names if not (x in seen or seen.add(x))]
+    table_str = "|===\n"
+    table_str += "| Dataset | ID\n\n"
 
-    for name in candidate_names:
-        for ext in (".yaml", ".yml"):
-            p = Path(f"data-catalog/policies/{name}{ext}")
-            if p.exists():
-                return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    for _, ds_name, ds_id in rows:
+        table_str += f"| {ds_name}\n"
+        table_str += f"| `{ds_id}`\n\n"
 
-    return {}
+    table_str += "|===\n\n"
+    return table_str
 
 
 def create_policy_page(policy: URIRef, catalog_graph: Graph):
     adoc_str = str()
 
-    source_doc = _load_source_policy_yaml(policy, catalog_graph)
-    source_policy = source_doc.get("policy", {}) or {}
-
     policy_id = get_id(policy, catalog_graph)
 
     policy_title = get_title(policy, catalog_graph)
     if not policy_title or policy_title == "None":
-        policy_title = str(source_policy.get("title", "")).strip()
-    if not policy_title or policy_title == "None":
         policy_title = policy_id
 
     policy_description = get_description(policy, catalog_graph)
-    if not policy_description or policy_description == "None":
-        policy_description = str(source_policy.get("description", "")).strip()
 
-    # Title
     adoc_str += "= " + policy_title + "\n\n"
 
-    # Policy details
     adoc_str += "== Policy Details\n\n"
     adoc_str += f"* **Title:** {policy_title}\n"
     adoc_str += f"* **ID:** `{policy_id}`\n"
@@ -74,9 +81,8 @@ def create_policy_page(policy: URIRef, catalog_graph: Graph):
 
     adoc_str += "\n"
 
-    # Placeholder linkage section
     adoc_str += "== Linked datasets\n\n"
-    adoc_str += "Policy linkage will be shown once policies are explicitly linked to datasets.\n\n"
+    adoc_str += _linked_datasets_table(policy_id)
 
     write_file(
         adoc_str=adoc_str,
