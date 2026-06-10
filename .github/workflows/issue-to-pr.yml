@@ -152,6 +152,8 @@ jobs:
             const dataset_use_case_B = getField("Dataset use case");
             const location_B = getField("Geographical Location (high-level)");
             const concepts_B = getField("Concept IDs (optional, comma-separated)");
+            const policy_ids_B = getField("Policy IDs (optional, comma-separated)");
+            const metric_ids_B = getField("Metric IDs (optional, comma-separated)");
             const distributions_B = getField("Distribution links (optional)");
 
             // Edit dataset fields
@@ -162,6 +164,8 @@ jobs:
             const dataset_use_case_C = getField("Dataset use case (optional)");
             const location_C = getField("Geographical Location (high-level) (optional)");
             const concepts_C = getField("Concept IDs (optional, comma-separated)");
+            const policy_ids_C = getField("Policy IDs (optional, comma-separated)");
+            const metric_ids_C = getField("Metric IDs (optional, comma-separated)");
             const distributions_C = getField("Distribution links (optional)");
 
             // Remove dataset fields
@@ -227,6 +231,8 @@ jobs:
                 !!dataset_use_case_C ||
                 !!location_C ||
                 !!concepts_C ||
+                !!policy_ids_C ||
+                !!metric_ids_C ||
                 !!distributions_C;
 
               if (!hasAnyEdit) {
@@ -313,6 +319,8 @@ jobs:
             core.setOutput("dataset_use_case_B", dataset_use_case_B);
             core.setOutput("location_B", location_B);
             core.setOutput("concepts_B", concepts_B);
+            core.setOutput("policy_ids_B", policy_ids_B);
+            core.setOutput("metric_ids_B", metric_ids_B);
             core.setOutput("distributions_B", distributions_B);
 
             core.setOutput("catalog_id_existing_C", catalog_id_existing_C);
@@ -322,6 +330,8 @@ jobs:
             core.setOutput("dataset_use_case_C", dataset_use_case_C);
             core.setOutput("location_C", location_C);
             core.setOutput("concepts_C", concepts_C);
+            core.setOutput("policy_ids_C", policy_ids_C);
+            core.setOutput("metric_ids_C", metric_ids_C);
             core.setOutput("distributions_C", distributions_C);
 
             core.setOutput("catalog_id_existing_D", catalog_id_existing_D);
@@ -492,6 +502,8 @@ jobs:
           dataset_use_case_raw = os.environ["DATASET_USE_CASE"].strip()
           location = os.environ["LOCATION"].strip()
           concepts_raw = os.environ.get("CONCEPTS", "").strip()
+          policy_ids_raw = os.environ.get("POLICY_IDS", "").strip()
+          metric_ids_raw = os.environ.get("METRIC_IDS", "").strip()
           distributions_raw = os.environ.get("DISTRIBUTIONS", "").strip()
 
           p = pathlib.Path(f"data-catalog/user-catalogs/{catalog_id}.yaml")
@@ -529,30 +541,36 @@ jobs:
           allowed = catalog.get("use_cases", []) or []
           if dataset_use_case not in allowed:
               raise SystemExit(
-                  f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
-                  f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
+                f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
+                f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
               )
 
           for ds in datasets:
               ds_id = ds.get("id") or ds.get("identifier")
               if ds_id == dataset_identifier:
-                  raise SystemExit(f"Dataset identifier already exists in catalog: {dataset_identifier}")
+                raise SystemExit(f"Dataset identifier already exists in catalog: {dataset_identifier}")
 
           concepts = [x.strip() for x in concepts_raw.split(",") if x.strip()]
+          policy_ids = [x.strip() for x in policy_ids_raw.split(",") if x.strip()]
+          metric_ids = [x.strip() for x in metric_ids_raw.split(",") if x.strip()]
           distributions = [x.strip() for x in distributions_raw.splitlines() if x.strip()]
 
           new_ds = {
-              "id": dataset_identifier,
-              "title": dataset_title,
-              "description": dataset_description,
-              "use_case": dataset_use_case,
-              "location": location,
+            "id": dataset_identifier,
+            "title": dataset_title,
+            "description": dataset_description,
+            "use_case": dataset_use_case,
+            "location": location,
           }
 
           if concepts:
-              new_ds["concepts"] = concepts
+            new_ds["concepts"] = concepts
+          if policy_ids:
+            new_ds["policies"] = policy_ids
+          if metric_ids:
+            new_ds["metrics"] = metric_ids
           if distributions:
-              new_ds["distributions"] = distributions
+            new_ds["distributions"] = distributions
 
           datasets.append(new_ds)
           doc["datasets"] = datasets
@@ -568,6 +586,8 @@ jobs:
           DATASET_USE_CASE: ${{ steps.parse.outputs.dataset_use_case_B }}
           LOCATION: ${{ steps.parse.outputs.location_B }}
           CONCEPTS: ${{ steps.parse.outputs.concepts_B }}
+          POLICY_IDS: ${{ steps.parse.outputs.policy_ids_B }}
+          METRIC_IDS: ${{ steps.parse.outputs.metric_ids_B }}
           DISTRIBUTIONS: ${{ steps.parse.outputs.distributions_B }}
 
       - name: Edit dataset in catalog YAML
@@ -588,73 +608,81 @@ jobs:
           dataset_use_case_raw = os.environ.get("DATASET_USE_CASE", "").strip()
           location = os.environ.get("LOCATION", "").strip()
           concepts_raw = os.environ.get("CONCEPTS", "").strip()
+          policy_ids_raw = os.environ.get("POLICY_IDS", "").strip()
+          metric_ids_raw = os.environ.get("METRIC_IDS", "").strip()
           distributions_raw = os.environ.get("DISTRIBUTIONS", "").strip()
 
           p = pathlib.Path(f"data-catalog/user-catalogs/{catalog_id}.yaml")
           if not p.exists():
-              raise SystemExit(f"Catalog not found: {p}")
+            raise SystemExit(f"Catalog not found: {p}")
 
           doc = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
           catalog = doc.get("catalog", {}) or {}
           datasets = doc.get("datasets", [])
           if datasets is None:
-              datasets = []
+            datasets = []
           if not isinstance(datasets, list):
-              raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
+            raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
 
           def norm_use_case(s: str) -> str:
-              s = s.strip().lower()
-              s = re.sub(r"[\s_]+", "-", s)
-              s = re.sub(r"[^a-z0-9-]", "-", s)
-              s = re.sub(r"-+", "-", s).strip("-")
-              return s
+            s = s.strip().lower()
+            s = re.sub(r"[\s_]+", "-", s)
+            s = re.sub(r"[^a-z0-9-]", "-", s)
+            s = re.sub(r"-+", "-", s).strip("-")
+            return s
 
           def ensure_catalog_scoped_dataset_id(catalog_id_value: str, dataset_id_value: str) -> str:
-              s = dataset_id_value.strip()
-              if not s:
-                  return s
-              if s.startswith("http://") or s.startswith("https://"):
-                  return s
-              if ":" in s:
-                  return s
-              return f"sdcdc:{catalog_id_value}-{s}"
+            s = dataset_id_value.strip()
+            if not s:
+              return s
+            if s.startswith("http://") or s.startswith("https://"):
+              return s
+            if ":" in s:
+              return s
+            return f"sdcdc:{catalog_id_value}-{s}"
 
           dataset_identifier = ensure_catalog_scoped_dataset_id(catalog_id, dataset_identifier_raw)
 
           target = None
           for ds in datasets:
-              ds_id = ds.get("id") or ds.get("identifier")
-              if ds_id == dataset_identifier:
-                  target = ds
-                  break
+            ds_id = ds.get("id") or ds.get("identifier")
+            if ds_id == dataset_identifier:
+              target = ds
+              break
 
           if target is None:
-              raise SystemExit(f"Dataset not found in catalog: {dataset_identifier}")
+            raise SystemExit(f"Dataset not found in catalog: {dataset_identifier}")
 
           if dataset_title:
-              target["title"] = dataset_title
+            target["title"] = dataset_title
 
           if dataset_description:
-              target["description"] = dataset_description
+            target["description"] = dataset_description
 
           if dataset_use_case_raw:
-              dataset_use_case = norm_use_case(dataset_use_case_raw)
-              allowed = catalog.get("use_cases", []) or []
-              if dataset_use_case not in allowed:
-                raise SystemExit(
-                  f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
-                  f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
-                )
-              target["use_case"] = dataset_use_case
+            dataset_use_case = norm_use_case(dataset_use_case_raw)
+            allowed = catalog.get("use_cases", []) or []
+            if dataset_use_case not in allowed:
+              raise SystemExit(
+                f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
+                f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
+              )
+            target["use_case"] = dataset_use_case
 
           if location:
-              target["location"] = location
+            target["location"] = location
 
           if concepts_raw:
-              target["concepts"] = [x.strip() for x in concepts_raw.split(",") if x.strip()]
+            target["concepts"] = [x.strip() for x in concepts_raw.split(",") if x.strip()]
+
+          if policy_ids_raw:
+            target["policies"] = [x.strip() for x in policy_ids_raw.split(",") if x.strip()]
+
+          if metric_ids_raw:
+            target["metrics"] = [x.strip() for x in metric_ids_raw.split(",") if x.strip()]
 
           if distributions_raw:
-              target["distributions"] = [x.strip() for x in distributions_raw.splitlines() if x.strip()]
+            target["distributions"] = [x.strip() for x in distributions_raw.splitlines() if x.strip()]
 
           p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
           print(f"Updated: {p}")
@@ -667,6 +695,8 @@ jobs:
           DATASET_USE_CASE: ${{ steps.parse.outputs.dataset_use_case_C }}
           LOCATION: ${{ steps.parse.outputs.location_C }}
           CONCEPTS: ${{ steps.parse.outputs.concepts_C }}
+          POLICY_IDS: ${{ steps.parse.outputs.policy_ids_C }}
+          METRIC_IDS: ${{ steps.parse.outputs.metric_ids_C }}
           DISTRIBUTIONS: ${{ steps.parse.outputs.distributions_C }}
 
       - name: Remove dataset from catalog YAML
@@ -685,31 +715,31 @@ jobs:
 
           p = pathlib.Path(f"data-catalog/user-catalogs/{catalog_id}.yaml")
           if not p.exists():
-              raise SystemExit(f"Catalog not found: {p}")
+            raise SystemExit(f"Catalog not found: {p}")
 
           doc = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
 
           datasets = doc.get("datasets", [])
           if datasets is None:
-              datasets = []
+            datasets = []
           if not isinstance(datasets, list):
-              raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
+            raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
 
           deleted_datasets = doc.get("deleted_datasets", [])
           if deleted_datasets is None:
-              deleted_datasets = []
+            deleted_datasets = []
           if not isinstance(deleted_datasets, list):
-              raise SystemExit("Invalid catalog YAML structure: deleted_datasets must be a list")
+            raise SystemExit("Invalid catalog YAML structure: deleted_datasets must be a list")
 
           def ensure_catalog_scoped_dataset_id(catalog_id_value: str, dataset_id_value: str) -> str:
-              s = dataset_id_value.strip()
-              if not s:
-                  return s
-              if s.startswith("http://") or s.startswith("https://"):
-                  return s
-              if ":" in s:
-                  return s
-              return f"sdcdc:{catalog_id_value}-{s}"
+            s = dataset_id_value.strip()
+            if not s:
+              return s
+            if s.startswith("http://") or s.startswith("https://"):
+              return s
+            if ":" in s:
+              return s
+            return f"sdcdc:{catalog_id_value}-{s}"
 
           dataset_identifier = ensure_catalog_scoped_dataset_id(catalog_id, dataset_identifier_raw)
 
@@ -717,37 +747,34 @@ jobs:
           kept_datasets = []
 
           for ds in datasets:
-              ds_id = ds.get("id") or ds.get("identifier")
-              if ds_id == dataset_identifier and removed_dataset is None:
-                  removed_dataset = ds
-              else:
-                  kept_datasets.append(ds)
+            ds_id = ds.get("id") or ds.get("identifier")
+            if ds_id == dataset_identifier and removed_dataset is None:
+              removed_dataset = ds
+            else:
+              kept_datasets.append(ds)
 
           if removed_dataset is None:
-              raise SystemExit(f"Dataset not found in catalog: {dataset_identifier}")
+            raise SystemExit(f"Dataset not found in catalog: {dataset_identifier}")
 
           tombstone = {
-              "id": removed_dataset.get("id") or removed_dataset.get("identifier") or dataset_identifier,
-              "title": removed_dataset.get("title", ""),
-              "description": removed_dataset.get("description", ""),
-              "deleted_at": datetime.date.today().isoformat(),
+            "id": removed_dataset.get("id") or removed_dataset.get("identifier") or dataset_identifier,
+            "title": removed_dataset.get("title", ""),
+            "description": removed_dataset.get("description", ""),
+            "deleted_at": datetime.date.today().isoformat(),
           }
 
           already_logged = any(
-              isinstance(item, dict) and str(item.get("id", "")).strip() == tombstone["id"]
-              for item in deleted_datasets
+            isinstance(item, dict) and str(item.get("id", "")).strip() == tombstone["id"]
+            for item in deleted_datasets
           )
 
           if not already_logged:
-              deleted_datasets.append(tombstone)
+            deleted_datasets.append(tombstone)
 
           doc["datasets"] = kept_datasets
           doc["deleted_datasets"] = deleted_datasets
 
-          p.write_text(
-              yaml.safe_dump(doc, sort_keys=False, allow_unicode=True),
-              encoding="utf-8"
-          )
+          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
           print(f"Removed dataset {dataset_identifier} from {catalog_id} and recorded it in deleted_datasets")
           PY
         env:
@@ -777,47 +804,44 @@ jobs:
           child_concept_ids = json.loads(os.environ.get("CHILD_CONCEPT_IDS", "[]"))
 
           def file_stem_from_id(value: str) -> str:
-              s = value.strip()
-              if ":" in s:
-                  s = s.split(":", 1)[1]
-              if "/" in s:
-                  s = s.rstrip("/").split("/")[-1]
-              if "#" in s:
-                  s = s.split("#")[-1]
-              s = re.sub(r"[^A-Za-z0-9._-]", "-", s)
-              return s
+            s = value.strip()
+            if ":" in s:
+              s = s.split(":", 1)[1]
+            if "/" in s:
+              s = s.rstrip("/").split("/")[-1]
+            if "#" in s:
+              s = s.split("#")[-1]
+            s = re.sub(r"[^A-Za-z0-9._-]", "-", s)
+            return s
 
           file_stem = file_stem_from_id(concept_id)
           p = pathlib.Path(f"data-catalog/concepts/{file_stem}.yaml")
           p.parent.mkdir(parents=True, exist_ok=True)
 
           if p.exists():
-              raise SystemExit(f"Concept file already exists: {p}")
+            raise SystemExit(f"Concept file already exists: {p}")
 
           doc = {
-              "concept": {
-                  "identifier": concept_id,
-                  "prefLabel": concept_pref_label,
-                  "definition": concept_definition,
-              }
+            "concept": {
+              "identifier": concept_id,
+              "prefLabel": concept_pref_label,
+              "definition": concept_definition,
+            }
           }
 
           if concept_alt_label:
-              doc["concept"]["altLabel"] = concept_alt_label
+            doc["concept"]["altLabel"] = concept_alt_label
 
           if concept_example:
-              doc["concept"]["example"] = concept_example
+            doc["concept"]["example"] = concept_example
 
           if relationship_type == "child concept" and parent_concept_id:
-              doc["concept"]["broader"] = parent_concept_id
+            doc["concept"]["broader"] = parent_concept_id
 
           if relationship_type == "parent concept" and child_concept_ids:
-              doc["concept"]["narrower"] = child_concept_ids
+            doc["concept"]["narrower"] = child_concept_ids
 
-          p.write_text(
-              yaml.safe_dump(doc, sort_keys=False, allow_unicode=True),
-              encoding="utf-8"
-          )
+          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
           print(f"Wrote concept file: {p}")
           PY
         env:
@@ -847,35 +871,32 @@ jobs:
           policy_description = os.environ["POLICY_DESCRIPTION"].strip()
 
           def file_stem_from_id(value: str) -> str:
-              s = value.strip()
-              if ":" in s:
-                  s = s.split(":", 1)[1]
-              if "/" in s:
-                  s = s.rstrip("/").split("/")[-1]
-              if "#" in s:
-                  s = s.split("#")[-1]
-              s = re.sub(r"[^A-Za-z0-9._-]", "-", s)
-              return s
+            s = value.strip()
+            if ":" in s:
+              s = s.split(":", 1)[1]
+            if "/" in s:
+              s = s.rstrip("/").split("/")[-1]
+            if "#" in s:
+              s = s.split("#")[-1]
+            s = re.sub(r"[^A-Za-z0-9._-]", "-", s)
+            return s
 
           file_stem = file_stem_from_id(policy_id)
           p = pathlib.Path(f"data-catalog/policies/{file_stem}.yaml")
           p.parent.mkdir(parents=True, exist_ok=True)
 
           if p.exists():
-              raise SystemExit(f"Policy file already exists: {p}")
+            raise SystemExit(f"Policy file already exists: {p}")
 
           doc = {
-              "policy": {
-                  "uid": policy_id,
-                  "title": policy_title,
-                  "description": policy_description,
-              }
+            "policy": {
+              "uid": policy_id,
+              "title": policy_title,
+              "description": policy_description,
+            }
           }
 
-          p.write_text(
-              yaml.safe_dump(doc, sort_keys=False, allow_unicode=True),
-              encoding="utf-8"
-          )
+          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
           print(f"Wrote policy file: {p}")
           PY
         env:
@@ -902,41 +923,38 @@ jobs:
           metric_dimension = os.environ.get("METRIC_DIMENSION", "").strip()
 
           def file_stem_from_id(value: str) -> str:
-              s = value.strip()
-              if ":" in s:
-                  s = s.split(":", 1)[1]
-              if "/" in s:
-                  s = s.rstrip("/").split("/")[-1]
-              if "#" in s:
-                  s = s.split("#")[-1]
-              s = re.sub(r"[^A-Za-z0-9._-]", "-", s)
-              return s
+            s = value.strip()
+            if ":" in s:
+              s = s.split(":", 1)[1]
+            if "/" in s:
+              s = s.rstrip("/").split("/")[-1]
+            if "#" in s:
+              s = s.split("#")[-1]
+            s = re.sub(r"[^A-Za-z0-9._-]", "-", s)
+            return s
 
           file_stem = file_stem_from_id(metric_id)
           p = pathlib.Path(f"data-catalog/metrics/{file_stem}.yaml")
           p.parent.mkdir(parents=True, exist_ok=True)
 
           if p.exists():
-              raise SystemExit(f"Metric file already exists: {p}")
+            raise SystemExit(f"Metric file already exists: {p}")
 
           doc = {
-              "metric": {
-                  "identifier": metric_id,
-                  "prefLabel": metric_pref_label,
-                  "definition": metric_definition,
-              }
+            "metric": {
+              "identifier": metric_id,
+              "prefLabel": metric_pref_label,
+              "definition": metric_definition,
+            }
           }
 
           if metric_expected_data_type:
-              doc["metric"]["expectedDataType"] = metric_expected_data_type
+            doc["metric"]["expectedDataType"] = metric_expected_data_type
 
           if metric_dimension:
-              doc["metric"]["inDimension"] = metric_dimension
+            doc["metric"]["inDimension"] = metric_dimension
 
-          p.write_text(
-              yaml.safe_dump(doc, sort_keys=False, allow_unicode=True),
-              encoding="utf-8"
-          )
+          p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
           print(f"Wrote metric file: {p}")
           PY
         env:
@@ -945,7 +963,6 @@ jobs:
           METRIC_DEFINITION: ${{ steps.parse.outputs.metric_definition_G }}
           METRIC_EXPECTED_DATA_TYPE: ${{ steps.parse.outputs.metric_expected_data_type_G }}
           METRIC_DIMENSION: ${{ steps.parse.outputs.metric_dimension_G }}
-
 
       - name: Show pending changes
         if: ${{ success() }}
