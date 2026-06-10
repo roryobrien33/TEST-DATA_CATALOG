@@ -1,0 +1,4 @@
+metric:
+  identifier: sdcdc:metric-h
+  prefLabel: H
+  definition: H
