@@ -21,6 +21,11 @@ datasets:
   description: LL
   use_case: a-a
   location: Dublin, Ireland
+- id: sdcdc:A-SF0JMV-rr-EV0O9W
+  title: RR
+  description: RR
+  use_case: a-a
+  location: Dublin, Ireland
 deleted_datasets:
 - id: sdcdc:A-SF0JMV-test
   title: New_tester
