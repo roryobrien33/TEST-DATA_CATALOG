@@ -1,7 +1,8 @@
 from pathlib import Path
 import yaml
 
-from rdflib import Graph, URIRef, DCAT, Namespace
+from rdflib import Graph, URIRef, DCAT, Namespace, RDF
+from rdflib.namespace import DCTERMS
 from simple_data_catalog_generator.page_creation_functions import (
     write_file,
     get_title,
@@ -13,6 +14,8 @@ from simple_data_catalog_generator.page_creation_functions import (
 from simple_data_catalog_generator.create_distribution_table import create_distribution_table
 
 SDCDC = Namespace("https://www.uuidea.eu/profiles/data-catalog/")
+DQV = Namespace("http://www.w3.org/ns/dqv#")
+ODRL = Namespace("http://www.w3.org/ns/odrl/2/")
 
 
 def _first_literal(graph: Graph, subject: URIRef, predicates):
@@ -54,6 +57,12 @@ def _candidate_catalog_names(raw_id: str, title: str):
 
 
 def _load_source_dataset_yaml(dataset: URIRef, catalog_graph: Graph):
+    """
+    Load the source dataset entry from the original user catalog YAML.
+
+    This is needed because policies / metrics are currently stored in source YAML,
+    not reliably round-tripped into the RDF graph for dataset page rendering.
+    """
     linked_series = catalog_graph.value(dataset, DCAT.inSeries)
     if linked_series is None:
         return {}
@@ -71,6 +80,27 @@ def _load_source_dataset_yaml(dataset: URIRef, catalog_graph: Graph):
                 break
         if source_file is not None:
             break
+
+    # fallback: scan by catalog.id / catalog.title
+    if source_file is None:
+        catalog_files = sorted(Path("data-catalog/user-catalogs").glob("*.yaml")) + sorted(
+            Path("data-catalog/user-catalogs").glob("*.yml")
+        )
+
+        for yf in catalog_files:
+            doc = yaml.safe_load(yf.read_text(encoding="utf-8")) or {}
+            cat = doc.get("catalog", {}) or {}
+
+            cat_id = str(cat.get("id") or cat.get("identifier") or "").strip()
+            cat_title = str(cat.get("title") or cat.get("name") or "").strip()
+
+            if cat_id in candidate_names:
+                source_file = yf
+                break
+
+            if series_title and cat_title == series_title:
+                source_file = yf
+                break
 
     if source_file is None:
         return {}
@@ -124,16 +154,74 @@ def _linked_concepts_table(dataset: URIRef, catalog_graph: Graph) -> str:
     return table_str
 
 
-def _simple_id_table(ids, label_singular: str) -> str:
+def _find_policy_resource_by_identifier(catalog_graph: Graph, policy_identifier: str):
+    for policy in catalog_graph.subjects(RDF.type, ODRL.Policy):
+        pid = str(catalog_graph.value(policy, DCTERMS.identifier) or "").strip()
+        if pid == policy_identifier:
+            return policy
+
+        # fallback for source-yaml-backed IDs
+        policy_title = str(catalog_graph.value(policy, DCTERMS.title) or "").strip()
+        if not pid and policy_title:
+            # leave title match out intentionally to avoid false positives
+            pass
+    return None
+
+
+def _find_metric_resource_by_identifier(catalog_graph: Graph, metric_identifier: str):
+    for metric in catalog_graph.subjects(RDF.type, DQV.Metric):
+        mid = str(catalog_graph.value(metric, DCTERMS.identifier) or "").strip()
+        if mid == metric_identifier:
+            return metric
+    return None
+
+
+def _id_links_table(ids, label_singular: str, catalog_graph: Graph, entity_type: str) -> str:
     if not ids:
         return f"No linked {label_singular.lower()}s.\n\n"
 
-    rows = sorted([str(x).strip() for x in ids if str(x).strip()], key=lambda x: x.lower())
+    rows = []
+
+    for rid in ids:
+        rid = str(rid).strip()
+        if not rid:
+            continue
+
+        display_name = rid
+        display_link = ""
+
+        if entity_type == "policy":
+            resource = _find_policy_resource_by_identifier(catalog_graph, rid)
+            if resource is not None:
+                display_name = get_title(resource, catalog_graph)
+                display_link = create_local_link(resource, catalog_graph)
+
+        elif entity_type == "metric":
+            resource = _find_metric_resource_by_identifier(catalog_graph, rid)
+            if resource is not None:
+                display_name = get_prefLabel(resource, catalog_graph)
+                if not display_name or display_name == "None":
+                    display_name = get_title(resource, catalog_graph)
+                display_link = create_local_link(resource, catalog_graph)
+
+        rows.append(
+            (
+                display_name.lower(),
+                display_link if display_link else display_name,
+                rid,
+            )
+        )
+
+    if not rows:
+        return f"No linked {label_singular.lower()}s.\n\n"
+
+    rows.sort(key=lambda x: x[0])
 
     table_str = "|===\n"
-    table_str += f"| {label_singular} ID\n\n"
+    table_str += f"| {label_singular} | ID\n\n"
 
-    for rid in rows:
+    for _, name_display, rid in rows:
+        table_str += f"| {name_display}\n"
         table_str += f"| `{rid}`\n\n"
 
     table_str += "|===\n\n"
@@ -180,8 +268,10 @@ def create_dataset_page(dataset: URIRef, catalog_graph: Graph):
     if not isinstance(metric_ids, list):
         metric_ids = []
 
+    # Title
     adoc_str += "= " + dataset_name + "\n\n"
 
+    # Dataset details
     adoc_str += "== Dataset Details\n\n"
     adoc_str += f"* **Name:** {dataset_name}\n"
     adoc_str += f"* **ID:** `{dataset_id}`\n"
@@ -210,21 +300,36 @@ def create_dataset_page(dataset: URIRef, catalog_graph: Graph):
 
     adoc_str += "\n"
 
+    # Description
     adoc_str += "== Description\n\n"
     if dataset_description and dataset_description != "None":
         adoc_str += dataset_description + "\n\n"
     else:
         adoc_str += "No description available.\n\n"
 
+    # Themes / concepts
     adoc_str += "== Themes\n\n"
     adoc_str += _linked_concepts_table(dataset=dataset, catalog_graph=catalog_graph)
 
+    # Policies
     adoc_str += "== Policies\n\n"
-    adoc_str += _simple_id_table(policy_ids, "Policy")
+    adoc_str += _id_links_table(
+        ids=policy_ids,
+        label_singular="Policy",
+        catalog_graph=catalog_graph,
+        entity_type="policy",
+    )
 
+    # Metrics
     adoc_str += "== Metrics\n\n"
-    adoc_str += _simple_id_table(metric_ids, "Metric")
+    adoc_str += _id_links_table(
+        ids=metric_ids,
+        label_singular="Metric",
+        catalog_graph=catalog_graph,
+        entity_type="metric",
+    )
 
+    # Distributions
     adoc_str += "== Distributions\n\n"
     if distributions:
         adoc_str += create_distribution_table(dataset=dataset, catalog_graph=catalog_graph)
@@ -232,6 +337,7 @@ def create_dataset_page(dataset: URIRef, catalog_graph: Graph):
     else:
         adoc_str += "No distributions available.\n\n"
 
+    # Overview
     adoc_str += "== Overview\n\n"
     adoc_str += (
         f"|===\n"
