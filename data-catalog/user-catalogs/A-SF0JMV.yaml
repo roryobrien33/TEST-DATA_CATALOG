@@ -16,6 +16,11 @@ datasets:
   concepts:
   - sdcdc:concept-voltage
   - sdcdc:concept-harmonics
+- id: sdcdc:A-SF0JMV-LL
+  title: LL
+  description: LL
+  use_case: a-a
+  location: Dublin, Ireland
 deleted_datasets:
 - id: sdcdc:A-SF0JMV-test
   title: New_tester
