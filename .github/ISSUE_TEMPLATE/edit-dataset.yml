@@ -18,11 +18,25 @@ body:
 
         For distributions, use one block per distribution in this format:
 
-        Format: text/csv
+        Format: csv
         Access URL: https://example.com/data.csv
         Issued: 2026-06-11
 
         Leave a blank line between distributions.
+
+        Allowed format values:
+        - csv
+        - text
+        - txt
+        - xlsx
+        - xls
+        - json
+        - xml
+        - ttl
+        - rdf
+        - parquet
+        - zip
+        - api
 
   - type: input
     id: catalog_id_existing
@@ -112,17 +126,22 @@ body:
       description: |
         Optional. Replace the distributions with one block per distribution.
 
+        Required fields per block:
+        - Format
+        - Access URL
+        - Issued
+
         Format:
-        Format: text/csv
+        Format: csv
         Access URL: https://example.com/data.csv
         Issued: 2026-06-11
       placeholder: |
-        Format: text/turtle
-        Access URL: https://example.com/data.ttl
+        Format: csv
+        Access URL: https://example.com/data.csv
         Issued: 2026-06-11
 
-        Format: text/csv
-        Access URL: https://example.com/data.csv
+        Format: xlsx
+        Access URL: https://example.com/data.xlsx
         Issued: 2026-06-12
     validations:
       required: false
