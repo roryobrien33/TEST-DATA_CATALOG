@@ -26,6 +26,21 @@ datasets:
   description: RR
   use_case: a-a
   location: Dublin, Ireland
+- id: sdcdc:A-SF0JMV-north-G45QDN
+  title: NORTH
+  description: N
+  use_case: a-a
+  location: Dublin, Ireland
+  distributions:
+  - format: csv
+    access_url: https://example.com/data.csv
+    issued: '2026-06-11'
+  - format: text
+    access_url: https://test.com/data.txt
+    issued: '2026-03-15'
+  - format: xlsx
+    access_url: https://cheese.com/data.xlsx
+    issued: '2025-05-02'
 deleted_datasets:
 - id: sdcdc:A-SF0JMV-test
   title: New_tester
