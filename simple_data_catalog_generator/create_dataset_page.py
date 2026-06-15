@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import yaml
 
 from rdflib import Graph, URIRef, DCAT, Namespace, RDF
@@ -25,12 +26,70 @@ def _first_literal(graph: Graph, subject: URIRef, predicates):
     return ""
 
 
+def _dataset_id_candidates(dataset: URIRef, catalog_graph: Graph) -> list[str]:
+    """
+    Build a robust list of candidate identifiers for this dataset so we can
+    match it back to the source YAML entry even if the RDF layer stores or
+    exposes the identifier slightly differently.
+    """
+    candidates = []
+
+    dataset_id = str(get_id(dataset, catalog_graph) or "").strip()
+    if dataset_id:
+        candidates.append(dataset_id)
+
+        if ":" in dataset_id:
+            candidates.append(dataset_id.split(":", 1)[1])
+
+        if "/" in dataset_id:
+            candidates.append(dataset_id.rstrip("/").split("/")[-1])
+
+        if "#" in dataset_id:
+            candidates.append(dataset_id.split("#")[-1])
+
+        if dataset_id.startswith("data-catalog"):
+            candidates.append(dataset_id.replace("data-catalog", "", 1).lstrip("-_/"))
+
+    dataset_uri = str(dataset).strip()
+    if dataset_uri:
+        candidates.append(dataset_uri)
+
+        if "/" in dataset_uri:
+            candidates.append(dataset_uri.rstrip("/").split("/")[-1])
+
+        if "#" in dataset_uri:
+            candidates.append(dataset_uri.split("#")[-1])
+
+    dataset_title = str(get_title(dataset, catalog_graph) or "").strip()
+    if dataset_title:
+        candidates.append(dataset_title)
+
+        # Extract embedded [ID: ...] if present in title
+        m = re.search(r"\[ID:\s*([^\]]+)\]", dataset_title)
+        if m:
+            embedded_id = m.group(1).strip()
+            candidates.append(embedded_id)
+
+            if ":" in embedded_id:
+                candidates.append(embedded_id.split(":", 1)[1])
+
+    seen = set()
+    cleaned = []
+    for c in candidates:
+        c = str(c).strip()
+        if c and c not in seen:
+            seen.add(c)
+            cleaned.append(c)
+
+    return cleaned
+
+
 def _load_source_dataset_yaml(dataset: URIRef, catalog_graph: Graph):
     """
     Load the source dataset entry from any original user catalog YAML by matching
-    the dataset identifier directly.
+    a robust set of candidate IDs against the dataset entries.
     """
-    dataset_id = get_id(dataset, catalog_graph)
+    candidate_ids = _dataset_id_candidates(dataset, catalog_graph)
 
     catalog_files = sorted(Path("data-catalog/user-catalogs").glob("*.yaml")) + sorted(
         Path("data-catalog/user-catalogs").glob("*.yml")
@@ -45,8 +104,26 @@ def _load_source_dataset_yaml(dataset: URIRef, catalog_graph: Graph):
         for ds in datasets:
             if not isinstance(ds, dict):
                 continue
+
             ds_id = str(ds.get("id") or ds.get("identifier") or "").strip()
-            if ds_id == dataset_id:
+            ds_title = str(ds.get("title") or "").strip()
+
+            ds_candidates = [ds_id, ds_title]
+            if ds_id:
+                if ":" in ds_id:
+                    ds_candidates.append(ds_id.split(":", 1)[1])
+                if "/" in ds_id:
+                    ds_candidates.append(ds_id.rstrip("/").split("/")[-1])
+                if "#" in ds_id:
+                    ds_candidates.append(ds_id.split("#")[-1])
+
+            matched = False
+            for cand in candidate_ids:
+                if cand and cand in ds_candidates:
+                    matched = True
+                    break
+
+            if matched:
                 return ds
 
     return {}
@@ -162,7 +239,7 @@ def _source_distribution_table(distributions) -> str:
 
     Expected shape:
       distributions:
-        - format: text/turtle
+        - format: csv
           access_url: https://...
           issued: 2026-06-11
     """
