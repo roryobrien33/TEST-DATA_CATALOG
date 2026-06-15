@@ -11,6 +11,14 @@ body:
 
         If linking concepts, policies, or metrics, use existing IDs (comma-separated).
 
+        For distributions, use one block per distribution in this format:
+
+        Format: text/csv
+        Access URL: https://example.com/data.csv
+        Issued: 2026-06-11
+
+        Leave a blank line between distributions.
+
   - type: input
     id: catalog_id_existing
     attributes:
@@ -61,7 +69,7 @@ body:
     attributes:
       label: Geographical Location (high-level)
       description: "Required. High-level geographic location."
-      placeholder: "Munich, Germany"
+      placeholder: "Dublin, Ireland"
     validations:
       required: true
 
@@ -70,7 +78,7 @@ body:
     attributes:
       label: Concept IDs (optional, comma-separated)
       description: "Optional. Use existing concept IDs, comma-separated."
-      placeholder: "sdcdc:concept-voltage, sdcdc:concept-harmonics"
+      placeholder: "sdcdc:concept-voltage-2H4KL0, sdcdc:concept-harmonics-7QX1P9"
     validations:
       required: false
 
@@ -79,7 +87,7 @@ body:
     attributes:
       label: Policy IDs (optional, comma-separated)
       description: "Optional. Use existing policy IDs, comma-separated."
-      placeholder: "plcy:open-information-policy"
+      placeholder: "sdcdc:policy-open-information-policy-7B9QX2"
     validations:
       required: false
 
@@ -88,17 +96,28 @@ body:
     attributes:
       label: Metric IDs (optional, comma-separated)
       description: "Optional. Use existing metric IDs, comma-separated."
-      placeholder: "sdcdc:metric-voltage-quality"
+      placeholder: "sdcdc:metric-voltage-quality-5M1ZP8"
     validations:
       required: false
 
   - type: textarea
     id: distributions
     attributes:
-      label: Distribution links (optional)
-      description: "Optional. One distribution/access link per line."
+      label: Distributions (optional)
+      description: |
+        Optional. One distribution block per distribution.
+
+        Format:
+        Format: text/csv
+        Access URL: https://example.com/data.csv
+        Issued: 2026-06-11
       placeholder: |
-        https://example.com/file.csv
-        https://example.com/api
+        Format: text/turtle
+        Access URL: https://example.com/data.ttl
+        Issued: 2026-06-11
+
+        Format: text/csv
+        Access URL: https://example.com/data.csv
+        Issued: 2026-06-12
     validations:
       required: false
