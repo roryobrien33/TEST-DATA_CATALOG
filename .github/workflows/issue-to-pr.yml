@@ -67,7 +67,7 @@ jobs:
                 .trim()
                 .toLowerCase()
                 .replace(/[\s_]+/g, "-")
-                .replace(/[^a-z0-9-]", "-")
+                .replace(/[^a-z0-9-]/g, "-")
                 .replace(/-+/g, "-")
                 .replace(/^-|-$/g, "");
             }
@@ -82,7 +82,7 @@ jobs:
                 .trim()
                 .toLowerCase()
                 .replace(/[\s_]+/g, "-")
-                .replace(/[^a-z0-9-]", "-")
+                .replace(/[^a-z0-9-]/g, "-")
                 .replace(/-+/g, "-")
                 .replace(/^-|-$/g, "");
             }
@@ -103,6 +103,7 @@ jobs:
               return s.includes(":") && !isIri(s);
             }
 
+            // -------- entity creation helpers (generate IDs only on create) --------
             function normalizeOrGenerateConceptId(raw, prefLabel) {
               const s = (raw || "").trim();
               if (s) {
@@ -133,6 +134,7 @@ jobs:
               return `sdcdc:metric-${slugify(prefLabel)}-${randomToken6()}`;
             }
 
+            // -------- reference helpers (must NOT invent random IDs) --------
             function normalizeConceptRef(raw) {
               const s = (raw || "").trim();
               if (!s) return "";
@@ -394,6 +396,54 @@ jobs:
               body: msg
             });
             core.setFailed("Validation failed");
+
+      - name: Comment generated Catalog ID
+        if: ${{ steps.parse.outputs.is_create_catalog == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "Generated Catalog ID: `${{ steps.parse.outputs.generated_catalog_id }}`"
+            });
+
+      - name: Comment concept ID
+        if: ${{ steps.parse.outputs.is_create_concept == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "Concept ID: `${{ steps.parse.outputs.concept_id_E }}`"
+            });
+
+      - name: Comment policy ID
+        if: ${{ steps.parse.outputs.is_create_policy == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "Policy ID: `${{ steps.parse.outputs.policy_id_F }}`"
+            });
+
+      - name: Comment metric ID
+        if: ${{ steps.parse.outputs.is_create_metric == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: "Metric ID: `${{ steps.parse.outputs.metric_id_G }}`"
+            });
 
       - name: Create catalog YAML
         if: ${{ steps.parse.outputs.is_create_catalog == 'true' }}
@@ -703,58 +753,58 @@ jobs:
 
           p = pathlib.Path(f"data-catalog/user-catalogs/{catalog_id}.yaml")
           if not p.exists():
-            raise SystemExit(f"Catalog not found: {p}")
+              raise SystemExit(f"Catalog not found: {p}")
 
           doc = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
           catalog = doc.get("catalog", {}) or {}
           datasets = doc.get("datasets", [])
           if datasets is None:
-            datasets = []
+              datasets = []
           if not isinstance(datasets, list):
-            raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
+              raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
 
           dataset_identifier = resolve_existing_dataset_id(catalog_id, dataset_identifier_raw, datasets)
 
           target = None
           for ds in datasets:
-            ds_id = ds.get("id") or ds.get("identifier")
-            if ds_id == dataset_identifier:
-              target = ds
-              break
+              ds_id = ds.get("id") or ds.get("identifier")
+              if ds_id == dataset_identifier:
+                  target = ds
+                  break
 
           if target is None:
-            raise SystemExit(f"Dataset not found in catalog: {dataset_identifier}")
+              raise SystemExit(f"Dataset not found in catalog: {dataset_identifier}")
 
           if dataset_title:
-            target["title"] = dataset_title
+              target["title"] = dataset_title
 
           if dataset_description:
-            target["description"] = dataset_description
+              target["description"] = dataset_description
 
           if dataset_use_case_raw:
-            dataset_use_case = norm_use_case(dataset_use_case_raw)
-            allowed = catalog.get("use_cases", []) or []
-            if dataset_use_case not in allowed:
-              raise SystemExit(
-                f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
-                f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
-              )
-            target["use_case"] = dataset_use_case
+              dataset_use_case = norm_use_case(dataset_use_case_raw)
+              allowed = catalog.get("use_cases", []) or []
+              if dataset_use_case not in allowed:
+                  raise SystemExit(
+                      f"Use case not allowed for this catalog. Provided: '{dataset_use_case_raw}' "
+                      f"(normalized: '{dataset_use_case}'). Allowed: {', '.join(allowed)}"
+                  )
+              target["use_case"] = dataset_use_case
 
           if location:
-            target["location"] = location
+              target["location"] = location
 
           if concepts:
-            target["concepts"] = concepts
+              target["concepts"] = concepts
 
           if policy_ids:
-            target["policies"] = policy_ids
+              target["policies"] = policy_ids
 
           if metric_ids:
-            target["metrics"] = metric_ids
+              target["metrics"] = metric_ids
 
           if distributions_raw.strip():
-            target["distributions"] = parse_distributions(distributions_raw)
+              target["distributions"] = parse_distributions(distributions_raw)
 
           p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
           print(f"Updated: {p}")
@@ -823,21 +873,21 @@ jobs:
 
           p = pathlib.Path(f"data-catalog/user-catalogs/{catalog_id}.yaml")
           if not p.exists():
-            raise SystemExit(f"Catalog not found: {p}")
+              raise SystemExit(f"Catalog not found: {p}")
 
           doc = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
 
           datasets = doc.get("datasets", [])
           if datasets is None:
-            datasets = []
+              datasets = []
           if not isinstance(datasets, list):
-            raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
+              raise SystemExit("Invalid catalog YAML structure: datasets must be a list")
 
           deleted_datasets = doc.get("deleted_datasets", [])
           if deleted_datasets is None:
-            deleted_datasets = []
+              deleted_datasets = []
           if not isinstance(deleted_datasets, list):
-            raise SystemExit("Invalid catalog YAML structure: deleted_datasets must be a list")
+              raise SystemExit("Invalid catalog YAML structure: deleted_datasets must be a list")
 
           dataset_identifier = resolve_existing_dataset_id(catalog_id, dataset_identifier_raw, datasets)
 
