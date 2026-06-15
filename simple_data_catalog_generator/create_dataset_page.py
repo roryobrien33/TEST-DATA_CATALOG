@@ -16,7 +16,6 @@ SDCDC = Namespace("https://www.uuidea.eu/profiles/data-catalog/")
 DQV = Namespace("http://www.w3.org/ns/dqv#")
 ODRL = Namespace("http://www.w3.org/ns/odrl/2/")
 
-adoc_str += "== DEBUG DATASET PAGE\n\nThis is the updated dataset page file.\n\n"
 
 def _first_literal(graph: Graph, subject: URIRef, predicates):
     for pred in predicates:
@@ -248,6 +247,9 @@ def create_dataset_page(dataset: URIRef, catalog_graph: Graph):
         source_distributions = [source_distributions]
     if not isinstance(source_distributions, list):
         source_distributions = []
+
+    # DEBUG MARKER
+    adoc_str += "== DEBUG DATASET PAGE\n\nThis is the updated dataset page file.\n\n"
 
     # Title
     adoc_str += "= " + dataset_name + "\n\n"
